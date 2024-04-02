@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "python-template"
+version = "0.1.0"
+description = ""
+authors = ["Klaus Ondrag <klaus.ondrag@outlook.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+# You must also update .pre-commit-config.yaml:pyright:additional_dependencies
+python = "3.12.2"
+typer = "^0.12.0"
+loguru = "^0.7.2"
+
+[tool.poetry.group.dev.dependencies]
+pyright = "^1.1.356"
+ruff = "^0.3.5"
+pre-commit = "^3.7.0"
+pytest = "^8.1.1"
+hypothesis = "^6.100.0"
+pytest-coverage = "^0.0"
+
+[tool.ruff.format]
+quote-style = "single"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
