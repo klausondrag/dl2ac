@@ -36,3 +36,12 @@ run *ARGS:
 run-example:
     just run example hello
     just run example goodbye "World" --log-level "debug"
+
+dev-start:
+	docker compose -f docker/docker-compose.dev.yml up -d
+
+dev-stop:
+	docker compose -f docker/docker-compose.dev.yml down
+
+run-dl2ac:
+    just run entry entry --log-level "debug"
