@@ -28,7 +28,7 @@ setup-dev:
     {{p_run}} pre-commit run --all-files
 
 test:
-    {{p_run}} pytest --cov=python_template
+    {{p_run}} pytest --cov=dl2ac
 
 run *ARGS:
     {{p_run}} python3 cli.py {{ARGS}}

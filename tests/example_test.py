@@ -1,7 +1,7 @@
 from hypothesis import given
 from hypothesis.strategies import text
 
-from python_template import example
+from dl2ac import example
 
 
 def test_example():

@@ -1,6 +1,6 @@
 import typer
 
-from python_template import example
+from dl2ac import example
 
 app = typer.Typer()
 app.add_typer(example.app, name='example')
