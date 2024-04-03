@@ -28,6 +28,7 @@ repos:
       additional_dependencies:
         # From poetry.lock
         - 'docker==7.0.0'
+        - 'git+https://github.com/rdozier-work/docker-stubs@9de7906804ae912f1d644c97b617ac77e784fca8'
         - 'hypothesis==6.100.0'
         - 'loguru==0.7.2'
         - 'typer==0.12.0'

@@ -13,6 +13,8 @@ loguru = "^0.7.2"
 typer = "^0.12.0"
 
 [tool.poetry.group.dev.dependencies]
+# See https://github.com/docker/docker-py/issues/2796
+docker-stubs = {git = "https://github.com/rdozier-work/docker-stubs", rev = "9de7906804ae912f1d644c97b617ac77e784fca8"}
 hypothesis = "^6.100.0"
 pre-commit = "^3.7.0"
 pyright = "^1.1.356"
