@@ -1,5 +1,10 @@
 version: "3.7"
 
 services:
+  authelia:
+    image: containous/whoami
+    labels:
+      - "dl2ac.is-authelia=true"
+
   whoami:
     image: containous/whoami
