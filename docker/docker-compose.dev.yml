@@ -8,3 +8,6 @@ services:
 
   whoami:
     image: containous/whoami
+    labels:
+      - "dl2ac.rules.one.priority=20"
+      - "dl2ac.rules.one.policy=one_factor"

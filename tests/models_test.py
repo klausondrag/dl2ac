@@ -17,9 +17,9 @@ def test_is_authelia_label(is_authelia: bool) -> None:
 
 @given(
     rule_name_strategy,
-    st.sampled_from(models.AutheliaPolicy),
+    st.sampled_from(config.AutheliaPolicy),
 )
-def test_policy_label(rule_name: str, policy: models.AutheliaPolicy) -> None:
+def test_policy_label(rule_name: str, policy: config.AutheliaPolicy) -> None:
     print(policy)
     label_key = config.POLICY_KEY_FORMAT.format(rule_name=rule_name)
     label_value = policy.value
