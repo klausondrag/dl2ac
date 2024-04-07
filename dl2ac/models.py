@@ -56,6 +56,13 @@ class ParsedRule:
         return True
 
 
+# Has no priority because the priority will determine its position in the containing list
+@dataclasses.dataclass
+class SortedRule:
+    name: str
+    policy: config.AutheliaPolicy
+
+
 class LabelBase(abc.ABC):
     @classmethod
     @abc.abstractmethod

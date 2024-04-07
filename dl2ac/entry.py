@@ -46,6 +46,9 @@ def entry(
     parsed_rules: list[models.ParsedRule] = parse_rules(all_labels)
     logger.debug(f'{parsed_rules=}')
 
+    sorted_rules: list[models.SortedRule] = sort_rules(parsed_rules)
+    logger.debug(f'{sorted_rules=}')
+
     restart_containers(parsed_containers)
 
 
@@ -98,6 +101,28 @@ def parse_rules(
         if (parsed_rule := models.ParsedRule.from_raw(rule, rule_name)) is not None
     ]
     return parsed_rules
+
+
+def sort_rules(parsed_rules: list[models.ParsedRule]) -> list[models.SortedRule]:
+    if len(parsed_rules) == 0:
+        return []
+
+    priorities = [parsed_rule.priority for parsed_rule in parsed_rules]
+    counter = collections.Counter(priorities)
+    # most_common(1) returns a list of the most common element: [(priority, count)]
+    # so [0][1] gets the count of the most common element
+    if counter.most_common(1)[0][1] > 1:
+        logger.warning(
+            'Found multiple rules with the same priority.'
+            ' This might cause frequent Authelia restarts.'
+            ' Please ensure each priority is only set once.'
+        )
+
+    parsed_rules = sorted(parsed_rules, key=lambda rule: rule.priority)
+    return [
+        models.SortedRule(name=parsed_rule.name, policy=parsed_rule.policy)
+        for parsed_rule in parsed_rules
+    ]
 
 
 def restart_containers(parsed_containers: list[models.ParsedContainer]):
