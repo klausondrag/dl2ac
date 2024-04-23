@@ -15,6 +15,8 @@ dynamic_config_overrides_strategy = st.builds(
     environment=runtime_environment_cli_strategy | st.none(),
     authelia_config_file=path_strategy | st.none(),
     rules_file=path_strategy | st.none(),
+    sleep_at_start_n_seconds=st.integers(min_value=0),
+    sleep_interval_n_seconds=st.integers(min_value=0),
     source_description=st.text(),
 )
 dynamic_config_strategy = st.builds(
@@ -24,6 +26,8 @@ dynamic_config_strategy = st.builds(
     environment=runtime_environment_cli_strategy,
     authelia_config_file=path_strategy,
     rules_file=path_strategy,
+    sleep_at_start_n_seconds=st.integers(min_value=0),
+    sleep_interval_n_seconds=st.integers(min_value=0),
 )
 
 

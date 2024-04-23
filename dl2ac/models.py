@@ -250,6 +250,10 @@ def parse_containers(
     ]
 
 
+def has_authelia_containers(parsed_containers: list[ParsedContainer]) -> bool:
+    return any(container.is_authelia for container in parsed_containers)
+
+
 def load_rules(
     parsed_containers: list[ParsedContainer],
 ) -> list[RuleLabel]:
@@ -356,7 +360,7 @@ def write_rules(rules: list[SortedRule], rules_file: Path) -> None:
         yaml.dump(rules_as_dicts, file)
 
 
-def restart_containers(parsed_containers: list[ParsedContainer]):
+def restart_containers(parsed_containers: list[ParsedContainer]) -> None:
     logger.debug('Restarting Authelia containers...')
     for container in parsed_containers:
         if container.is_authelia:
@@ -366,7 +370,7 @@ def restart_containers(parsed_containers: list[ParsedContainer]):
     logger.info('Finished restarting Authelia containers.')
 
 
-def enum_as_value_factory(data):
+def enum_as_value_factory(data) -> dict:
     def convert_value(obj):
         if isinstance(obj, enum.Enum):
             return obj.value

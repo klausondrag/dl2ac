@@ -7,6 +7,7 @@ from typing import Self, TypeVar, Any
 
 from loguru import logger
 
+
 LABEL_START = 'dl2ac'
 
 # 'dl2ac.is-authelia': true
@@ -162,6 +163,8 @@ class DynamicConfigOverrides:
     environment: RuntimeEnvironmentCli | None
     authelia_config_file: Path | None
     rules_file: Path | None
+    sleep_at_start_n_seconds: int | None
+    sleep_interval_n_seconds: int | None
     source_description: str
 
 
@@ -190,6 +193,8 @@ environment_overrides = DynamicConfigOverrides(
     environment=runtime_environment_from_env,
     authelia_config_file=authelia_config_file_from_env,
     rules_file=rules_file_from_env,
+    sleep_at_start_n_seconds=get_int_from_env('SLEEP_AT_START_N_SECONDS'),
+    sleep_interval_n_seconds=get_int_from_env('SLEEP_INTERVAL_N_SECONDS'),
 )
 
 
@@ -200,6 +205,8 @@ class DynamicConfig:
     environment: RuntimeEnvironmentCli
     authelia_config_file: Path
     rules_file: Path
+    sleep_at_start_n_seconds: int
+    sleep_interval_n_seconds: int
 
     @property
     def backup_config_file(self) -> Path:
@@ -269,6 +276,8 @@ defaults = DynamicConfig(
     environment=RuntimeEnvironmentCli.PROD_DOCKER,
     authelia_config_file=RuntimeEnvironmentCli.PROD_DOCKER.to_runtime_environment().value.authelia_config_file,
     rules_file=RuntimeEnvironmentCli.PROD_DOCKER.to_runtime_environment().value.rules_file,
+    sleep_at_start_n_seconds=5,
+    sleep_interval_n_seconds=60,
 )
 
 defaults_fields = {field.name for field in dataclasses.fields(defaults)}
