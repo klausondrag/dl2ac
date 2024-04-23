@@ -1,10 +1,7 @@
 from hypothesis import given, strategies as st
 
 from dl2ac import config, models
-
-rule_name_strategy = st.text(
-    alphabet=st.characters(exclude_characters=['.', '\n']), min_size=1
-)
+from tests import shared
 
 
 @given(st.booleans())
@@ -16,7 +13,7 @@ def test_is_authelia_label(is_authelia: bool) -> None:
 
 
 @given(
-    rule_name_strategy,
+    shared.rule_name_strategy,
     st.sampled_from(config.AutheliaPolicy),
 )
 def test_policy_label(rule_name: str, policy: config.AutheliaPolicy) -> None:
@@ -29,7 +26,7 @@ def test_policy_label(rule_name: str, policy: config.AutheliaPolicy) -> None:
     assert label.policy == policy
 
 
-@given(rule_name_strategy, st.integers())
+@given(shared.rule_name_strategy, st.integers())
 def test_priority_label(rule_name: str, priority: int) -> None:
     label_key = config.PRIORITY_KEY_FORMAT.format(rule_name=rule_name)
     label_value = str(priority)

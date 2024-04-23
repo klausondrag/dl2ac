@@ -178,3 +178,7 @@ pyrightconfig.json
 ### IDEs ###
 .vscode
 .idea
+
+### Others ###
+dev/*
+!dev/.gitkeep

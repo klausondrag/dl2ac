@@ -44,4 +44,9 @@ dev-stop:
 	docker compose -f docker/docker-compose.dev.yml down
 
 run-dl2ac:
-    just run entry entry --log-level "debug"
+    rm ./dev/*.yml -f
+    cp ./authelia-configs/default-configuration_4.38.7.yml ./dev/configuration.yml
+    just run entry entry --log-level "debug" --environment "dev-local"
+
+extract-default-config:
+	./extract_default_config.sh
