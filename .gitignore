@@ -180,5 +180,8 @@ pyrightconfig.json
 .idea
 
 ### Others ###
-dev/*
-!dev/.gitkeep
+
+# Dev folders
+/dev/**
+!/dev/**/
+!.gitkeep

@@ -60,8 +60,8 @@ class RuntimeEnvironmentConfig:
 class RuntimeEnvironment(enum.Enum):
     DEV_LOCAL = RuntimeEnvironmentConfig(
         name='dev-local',
-        authelia_config_file=Path('./dev/configuration.yml'),
-        rules_file=Path('./dev/rules.yml'),
+        authelia_config_file=Path('./dev/local/configuration.yml'),
+        rules_file=Path('./dev/local/rules.yml'),
     )
     DEV_DOCKER = RuntimeEnvironmentConfig(
         name='dev-docker',

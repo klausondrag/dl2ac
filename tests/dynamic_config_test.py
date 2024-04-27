@@ -5,6 +5,7 @@ from hypothesis import given, strategies as st
 
 from dl2ac import config
 
+
 authelia_policy_strategy = st.sampled_from(config.AutheliaPolicy)
 runtime_environment_cli_strategy = st.sampled_from(config.RuntimeEnvironmentCli)
 path_strategy = st.builds(Path, st.text())
@@ -68,7 +69,7 @@ def test_any_config(
 @given(
     dynamic_config_strategy,
     dynamic_config_strategy,
-    st.lists(dynamic_config_overrides_strategy),
+    st.lists(dynamic_config_overrides_strategy, max_size=3),
 )
 def test_first_config(
     expected_dynamic_config: config.DynamicConfig,

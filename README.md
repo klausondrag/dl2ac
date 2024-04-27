@@ -16,5 +16,5 @@ This is a security concern.
 
 ## Run
 1. Run `just dev-start` at the beginning of your development session to start docker containers.
-1. Modify code, then run `just run-dl2ac-once`.
+1. Modify code, then run `just run-dl2ac-dev-local-once`.
 1. Run `just dev-stop` at the end of your development session to stop docker containers.

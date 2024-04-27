@@ -14,7 +14,8 @@ ruamel-yaml = "^0.18.6"
 typer = "^0.12.0"
 
 [tool.poetry.group.dev.dependencies]
-# See https://github.com/docker/docker-py/issues/2796
+# You must also update .pre-commit-config.yaml:pyright:additional_dependencies
+# For docker types, See https://github.com/docker/docker-py/issues/2796
 docker-stubs = {git = "https://github.com/rdozier-work/docker-stubs", rev = "9de7906804ae912f1d644c97b617ac77e784fca8"}
 hypothesis = "^6.100.0"
 pre-commit = "^3.7.0"

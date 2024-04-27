@@ -1,6 +1,32 @@
-version: "3.7"
-
 services:
+  dl2ac:
+    build:
+      context: ..
+      dockerfile: "./docker/Dockerfile"
+    environment:
+      - DOCKER_HOST=tcp://docker-proxy:2375
+      - SLEEP_AT_START_N_SECONDS
+    networks:
+      - proxy
+    profiles: [dev-docker]
+    user: 1000:1000
+    volumes:
+#      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../dev/docker/config:/config
+      - ../dev/docker/rules:/rules
+
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy
+    restart: unless-stopped
+    networks:
+      - proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - LOG_LEVEL=warning
+      - CONTAINERS=1
+      - POST=1
+
   authelia:
     image: containous/whoami
     labels:
@@ -11,3 +37,6 @@ services:
     labels:
       - "dl2ac.rules.one.priority=20"
       - "dl2ac.rules.one.policy=one_factor"
+
+networks:
+  proxy:
