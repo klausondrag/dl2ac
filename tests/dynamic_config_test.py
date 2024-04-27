@@ -63,7 +63,7 @@ def test_any_config(
         setattr(defaults, field.name, getattr(expected_dynamic_config, field.name))
 
     actual_dynamic_config = config.DynamicConfig.load(defaults, overrides)
-    assert expected_dynamic_config == actual_dynamic_config
+    assert actual_dynamic_config == expected_dynamic_config
 
 
 @given(
@@ -85,4 +85,4 @@ def test_first_config(
     )
     overrides = [expected_overrides] + overrides
     actual_dynamic_config = config.DynamicConfig.load(defaults, overrides)
-    assert expected_dynamic_config == actual_dynamic_config
+    assert actual_dynamic_config == expected_dynamic_config

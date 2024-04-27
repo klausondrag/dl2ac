@@ -54,7 +54,8 @@ dev-stop:
 run-dl2ac-dev-local-once: dev-start && dev-stop
     rm {{dev_local_path}}/*.yml -f
     cp {{authelia_config_file}} {{dev_local_path}}/configuration.yml
-    just run dl2ac run-once --log-level "debug" --environment "dev-local"
+    just run dl2ac run-loop --log-level "debug" --environment "dev-local" \
+      --sleep-at-start-n-seconds 2 --max-iterations 1
 
 run-dl2ac-dev-local-loop: dev-start && dev-stop
     # trap doesn't seem to work with just

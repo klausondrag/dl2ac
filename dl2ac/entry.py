@@ -14,7 +14,9 @@ from typing_extensions import Annotated
 
 from dl2ac import config, models
 
+
 app = typer.Typer()
+regular_exit_message = 'Finished program because max iterations (={}) has been reached.'
 
 
 class LogLevel(str, enum.Enum):
@@ -31,47 +33,6 @@ class LogLevel(str, enum.Enum):
 # So, we use Optional[Path] instead.
 # See https://github.com/tiangolo/typer/issues/533
 @app.command()
-def run_once(
-    log_level: Annotated[LogLevel, typer.Option(case_sensitive=False)] = LogLevel.INFO,
-    environment: Annotated[
-        Optional[config.RuntimeEnvironmentCli], typer.Option(case_sensitive=False)
-    ] = None,
-    default_authelia_policy: Annotated[
-        Optional[config.AutheliaPolicy], typer.Option(case_sensitive=False)
-    ] = None,
-    default_rule_policy: Annotated[
-        Optional[config.AutheliaPolicy], typer.Option(case_sensitive=False)
-    ] = None,
-    authelia_config_file: Annotated[Optional[Path], typer.Option()] = None,
-    rules_file: Annotated[Optional[Path], typer.Option()] = None,
-) -> None:
-    logger.remove()
-    logger.add(sys.stderr, level=log_level.value)
-
-    dynamic_config = create_dynamic_config(
-        authelia_config_file,
-        default_authelia_policy,
-        default_rule_policy,
-        environment,
-        rules_file,
-        None,
-        None,
-    )
-
-    client: DockerClient = docker.from_env()
-    parsed_containers = load_containers(client)
-    sorted_rules = to_rules(parsed_containers, dynamic_config)
-    access_control_dict = to_authelia_data(sorted_rules, dynamic_config)
-    models.write_config(
-        access_control_dict,
-        config_file=dynamic_config.authelia_config_file,
-        backup_config_file=dynamic_config.backup_config_file,
-    )
-    models.write_rules(sorted_rules, rules_file=dynamic_config.rules_file)
-    models.restart_containers(parsed_containers)
-
-
-@app.command()
 def run_loop(
     log_level: Annotated[LogLevel, typer.Option(case_sensitive=False)] = LogLevel.INFO,
     environment: Annotated[
@@ -87,6 +48,7 @@ def run_loop(
     rules_file: Annotated[Optional[Path], typer.Option()] = None,
     sleep_at_start_n_seconds: Annotated[Optional[int], typer.Option(min=0)] = None,
     sleep_interval_n_seconds: Annotated[Optional[int], typer.Option(min=0)] = None,
+    max_iterations: Annotated[Optional[int], typer.Option(min=-1)] = None,
 ) -> None:
     logger.remove()
     logger.add(sys.stderr, level=log_level.value)
@@ -103,9 +65,13 @@ def run_loop(
 
     client = docker.from_env()
 
+    if max_iterations is not None and max_iterations < 0:
+        max_iterations = None
+
     last_written_data: dict | None = None
     is_first_loop = True
-    while True:
+    current_iteration = 0
+    while max_iterations is None or current_iteration < max_iterations:
         # Sleep at the start of the loop, so we can use the keyword `continue`
         sleep_n_seconds = (
             dynamic_config.sleep_at_start_n_seconds
@@ -116,6 +82,9 @@ def run_loop(
         time.sleep(sleep_n_seconds)
         logger.info('Woke up. Continuing work...')
         is_first_loop = False
+
+        # Avoid counting endlessly if we run in an endless loop
+        current_iteration = 0 if max_iterations is None else current_iteration + 1
 
         parsed_containers = load_containers(client)
 
@@ -139,6 +108,8 @@ def run_loop(
         )
         models.write_rules(sorted_rules, rules_file=dynamic_config.rules_file)
         models.restart_containers(parsed_containers)
+
+    logger.info(regular_exit_message, max_iterations)
 
 
 def create_dynamic_config(
