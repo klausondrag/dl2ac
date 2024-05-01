@@ -16,6 +16,8 @@ parsed_container_strategy = st.builds(
     labels=st.lists(st.nothing()),
 )
 
+# Rules get sorted by first their rank, and second by their name.
+# So, rule names should be unique to assure stable sorting.
 sorted_rule_strategy = st.builds(
     models.SortedRule,
     name=shared.rule_name_strategy,

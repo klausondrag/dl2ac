@@ -300,7 +300,7 @@ def sort_rules(parsed_rules: list[ParsedRule]) -> list[SortedRule]:
             ' Please ensure each rank is only set once.'
         )
 
-    parsed_rules = sorted(parsed_rules, key=lambda rule: rule.rank)
+    parsed_rules.sort(key=lambda rule: (rule.rank, rule.name))
     return [
         SortedRule(name=parsed_rule.name, policy=parsed_rule.policy)
         for parsed_rule in parsed_rules
