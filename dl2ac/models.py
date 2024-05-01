@@ -17,14 +17,14 @@ from dl2ac import config
 @dataclasses.dataclass
 class RawRule:
     policies: list[config.AutheliaPolicy] = dataclasses.field(default_factory=list)
-    priorities: list[int] = dataclasses.field(default_factory=list)
+    ranks: list[int] = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass
 class ParsedRule:
     name: str
+    rank: int
     policy: config.AutheliaPolicy
-    priority: int
 
     @classmethod
     def from_raw(
@@ -37,7 +37,7 @@ class ParsedRule:
             validation_function(values, rule_name, field_name)
             for validation_function, values, field_name in [
                 (cls._validate_at_most_one, raw_rule.policies, 'policy'),
-                (cls._validate_exactly_one, raw_rule.priorities, 'priority'),
+                (cls._validate_exactly_one, raw_rule.ranks, 'rank'),
             ]
         ):
             logger.warning(
@@ -51,11 +51,11 @@ class ParsedRule:
         policy = (
             raw_rule.policies[0] if len(raw_rule.policies) == 1 else default_rule_policy
         )
-        priority = raw_rule.priorities[0]
+        rank = raw_rule.ranks[0]
         return cls(
             name=rule_name,
             policy=policy,
-            priority=priority,
+            rank=rank,
         )
 
     @staticmethod
@@ -83,7 +83,7 @@ class ParsedRule:
         return True
 
 
-# Has no priority because the priority will determine its position in the containing list
+# Has no rank because the rank will determine its position in the containing list
 @dataclasses.dataclass
 class SortedRule:
     name: str
@@ -158,34 +158,34 @@ class PolicyLabel(RuleLabel):
 
 
 @dataclasses.dataclass
-class PriorityLabel(RuleLabel):
-    priority: int
+class RankLabel(RuleLabel):
+    rank: int
 
     @classmethod
     def try_parse(cls, label_key: str, label_value: str) -> Self | None:
-        # 'dl2ac.rules.one.priority': '20'
+        # 'dl2ac.rules.one.rank': '20'
         # TODO: add debug logging
-        if match := config.PRIORITY_KEY_REGEX.match(label_key):
+        if match := config.RANK_KEY_REGEX.match(label_key):
             rule_name = match.group(1)
 
             try:
-                priority = int(label_value)
+                rank = int(label_value)
             except ValueError:
                 # TODO: add container id, container name, and label_key
                 logger.warning(
-                    f'Invalid priority value found, cannot parse `{label_value}` as int.'
+                    f'Invalid rank value found, cannot parse `{label_value}` as int.'
                 )
                 return None
 
-            return cls(rule_name=rule_name, priority=priority)
+            return cls(rule_name=rule_name, rank=rank)
 
         return None
 
     def add_self_to(self, raw_rule: RawRule) -> None:
-        raw_rule.priorities.append(self.priority)
+        raw_rule.ranks.append(self.rank)
 
 
-supported_label_types = [IsAutheliaLabel, PolicyLabel, PriorityLabel]
+supported_label_types = [IsAutheliaLabel, PolicyLabel, RankLabel]
 
 
 @dataclasses.dataclass
@@ -289,18 +289,18 @@ def sort_rules(parsed_rules: list[ParsedRule]) -> list[SortedRule]:
     if len(parsed_rules) == 0:
         return []
 
-    priorities = [parsed_rule.priority for parsed_rule in parsed_rules]
-    counter = collections.Counter(priorities)
-    # most_common(1) returns a list of the most common element: [(priority, count)]
+    ranks = [parsed_rule.rank for parsed_rule in parsed_rules]
+    counter = collections.Counter(ranks)
+    # most_common(1) returns a list of the most common element: [(rank, count)]
     # so [0][1] gets the count of the most common element
     if counter.most_common(1)[0][1] > 1:
         logger.warning(
-            'Found multiple rules with the same priority.'
+            'Found multiple rules with the same rank.'
             ' This might cause frequent Authelia restarts.'
-            ' Please ensure each priority is only set once.'
+            ' Please ensure each rank is only set once.'
         )
 
-    parsed_rules = sorted(parsed_rules, key=lambda rule: rule.priority)
+    parsed_rules = sorted(parsed_rules, key=lambda rule: rule.rank)
     return [
         SortedRule(name=parsed_rule.name, policy=parsed_rule.policy)
         for parsed_rule in parsed_rules

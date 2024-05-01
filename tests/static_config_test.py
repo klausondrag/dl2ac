@@ -12,10 +12,8 @@ def test_policy_rule(expected_rule_name: str) -> None:
 
 
 @given(shared.rule_name_strategy)
-def test_priority_rule(expected_rule_name: str) -> None:
-    _test_rule(
-        config.PRIORITY_KEY_REGEX, config.PRIORITY_KEY_FORMAT, expected_rule_name
-    )
+def test_rank_rule(expected_rule_name: str) -> None:
+    _test_rule(config.RANK_KEY_REGEX, config.RANK_KEY_FORMAT, expected_rule_name)
 
 
 def _test_rule(regex: re.Pattern, format_string: str, expected_rule_name: str) -> None:

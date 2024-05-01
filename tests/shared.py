@@ -11,7 +11,7 @@ rule_name_strategy = st.text(
     alphabet=st.characters(exclude_characters=['.', '\n']), min_size=1
 )
 policy_strategy = st.sampled_from(config.AutheliaPolicy)
-priority_strategy = st.integers()
+rank_strategy = st.integers()
 
 policy_label_strategy = st.builds(
     models.PolicyLabel,
@@ -19,10 +19,10 @@ policy_label_strategy = st.builds(
     policy=policy_strategy,
 )
 
-priority_label_strategy = st.builds(
-    models.PriorityLabel,
+rank_label_strategy = st.builds(
+    models.RankLabel,
     rule_name=rule_name_strategy,
-    priority=priority_strategy,
+    rank=rank_strategy,
 )
 
 sleep_at_start_n_seconds = '1'

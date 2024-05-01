@@ -26,10 +26,10 @@ def test_policy_label(rule_name: str, policy: config.AutheliaPolicy) -> None:
 
 
 @given(shared.rule_name_strategy, st.integers())
-def test_priority_label(rule_name: str, priority: int) -> None:
-    label_key = config.PRIORITY_KEY_FORMAT.format(rule_name=rule_name)
-    label_value = str(priority)
-    label = models.PriorityLabel.try_parse(label_key, label_value)
+def test_rank_label(rule_name: str, rank: int) -> None:
+    label_key = config.RANK_KEY_FORMAT.format(rule_name=rule_name)
+    label_value = str(rank)
+    label = models.RankLabel.try_parse(label_key, label_value)
     assert label is not None
     assert label.rule_name == rule_name
-    assert label.priority == priority
+    assert label.rank == rank

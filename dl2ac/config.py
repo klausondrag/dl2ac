@@ -24,9 +24,9 @@ LABEL_RULES_START_FORMAT = f'{LABEL_START}.rules.{{rule_name}}'
 POLICY_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.policy')
 POLICY_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.policy'
 
-# 'dl2ac.rules.one.priority': '20'
-PRIORITY_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.priority')
-PRIORITY_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.priority'
+# 'dl2ac.rules.one.rank': '20'
+RANK_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.rank')
+RANK_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.rank'
 
 UPDATE_YAML_KEY = 'access_control'
 

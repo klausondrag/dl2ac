@@ -48,7 +48,7 @@ def containers_and_access_control(
     n_sorted_rules = len(access_control.rules)
     default_rule_policy = draw(shared.policy_strategy)
 
-    priorities = sorted(
+    ranks = sorted(
         draw(
             st.lists(
                 st.integers(),
@@ -60,7 +60,7 @@ def containers_and_access_control(
     )
     labels: list[models.RuleLabel] = []
     label_strings: list[tuple[str, str]] = []
-    for sorted_rule, priority in zip(access_control.rules, priorities):
+    for sorted_rule, rank in zip(access_control.rules, ranks):
         if sorted_rule.policy != default_rule_policy or draw(st.booleans()):
             # If sorted_rule.policy == default_rule_policy
             # we randomly skip adding the label
@@ -75,16 +75,14 @@ def containers_and_access_control(
             policy_label_string_value = sorted_rule.policy.value
             label_strings.append((policy_label_string_key, policy_label_string_value))
 
-        priority_label = models.PriorityLabel(
-            rule_name=sorted_rule.name, priority=priority
-        )
-        labels.append(priority_label)
+        rank_label = models.RankLabel(rule_name=sorted_rule.name, rank=rank)
+        labels.append(rank_label)
 
-        priority_label_string_key = config.PRIORITY_KEY_FORMAT.format(
+        rank_label_string_key = config.RANK_KEY_FORMAT.format(
             rule_name=sorted_rule.name
         )
-        priority_label_string_value = str(priority)
-        label_strings.append((priority_label_string_key, priority_label_string_value))
+        rank_label_string_value = str(rank)
+        label_strings.append((rank_label_string_key, rank_label_string_value))
 
     n_labels = len(labels)
     parsed_containers: list[models.ParsedContainer] = draw(
