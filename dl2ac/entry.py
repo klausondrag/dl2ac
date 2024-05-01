@@ -92,21 +92,27 @@ def run_loop(
             logger.warning('No Authelia container found')
             continue
 
-        sorted_rules = to_rules(parsed_containers, dynamic_config)
-        access_control_dict = to_authelia_data(sorted_rules, dynamic_config)
+        access_control_data = to_authelia_data(
+            parsed_containers,
+            dynamic_config.default_authelia_policy,
+            dynamic_config.default_rule_policy,
+        )
 
-        if last_written_data is not None and last_written_data == access_control_dict:
+        if last_written_data is not None and last_written_data == access_control_data:
             logger.info(
                 'Data did not change since last write. Skipping Re-Writing and Re-Starting.'
             )
             continue
 
         models.write_config(
-            access_control_dict,
+            access_control_data=access_control_data,
             config_file=dynamic_config.authelia_config_file,
             backup_config_file=dynamic_config.backup_config_file,
         )
-        models.write_rules(sorted_rules, rules_file=dynamic_config.rules_file)
+        models.write_access_control_data(
+            access_control_data=access_control_data,
+            rules_file=dynamic_config.rules_file,
+        )
         models.restart_containers(parsed_containers)
 
     logger.info(regular_exit_message, max_iterations)
@@ -183,30 +189,23 @@ def load_containers(client: DockerClient) -> list[models.ParsedContainer]:
     return parsed_containers
 
 
-def to_rules(
+def to_authelia_data(
     parsed_containers: list[models.ParsedContainer],
-    dynamic_config: config.DynamicConfig,
-) -> list[models.SortedRule]:
+    default_authelia_policy: config.AutheliaPolicy,
+    default_rule_policy: config.AutheliaPolicy,
+) -> dict:
     all_labels: list[models.RuleLabel] = models.load_rules(parsed_containers)
     logger.debug(f'{all_labels=}')
 
     parsed_rules: list[models.ParsedRule] = models.parse_rules(
-        all_labels, dynamic_config.default_rule_policy
+        all_labels, default_rule_policy
     )
     logger.debug(f'{parsed_rules=}')
 
     sorted_rules: list[models.SortedRule] = models.sort_rules(parsed_rules)
     logger.debug(f'{sorted_rules=}')
 
-    return sorted_rules
-
-
-def to_authelia_data(
-    sorted_rules: list[models.SortedRule], dynamic_config: config.DynamicConfig
-) -> dict:
-    access_control = models.to_access_control(
-        sorted_rules, dynamic_config.default_authelia_policy
-    )
+    access_control = models.to_access_control(sorted_rules, default_authelia_policy)
     logger.debug(f'{access_control=}')
 
     access_control_dict = dataclasses.asdict(

@@ -31,11 +31,12 @@ setup-dev:
     {{p_run}} pre-commit run --all-files
 
 test:
-    {{p_run}} pytest --cov=dl2ac --hypothesis-profile dev
+    {{p_run}} pytest --cov dl2ac --hypothesis-profile dev -vv
 
 # Can use if interested: --hypothesis-show-statistics
 test-all:
-    DL2AC_RUN_INTEGRATION_TESTS=1 {{p_run}} pytest --cov=dl2ac --hypothesis-profile dev-all
+    DL2AC_RUN_INTEGRATION_TESTS=1 {{p_run}} pytest --cov dl2ac \
+      --hypothesis-profile dev-all -vv
 
 run *ARGS:
     {{p_run}} python3 cli.py {{ARGS}}

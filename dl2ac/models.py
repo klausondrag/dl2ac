@@ -41,7 +41,7 @@ class ParsedRule:
             ]
         ):
             logger.warning(
-                f'Rule {rule_name} is invalid because it has one or more invalid fields.'
+                f'Rule `{rule_name}` is invalid because it has one or more invalid fields.'
                 f' Skipping it. Please fix above issues to add it.'
             )
             return None
@@ -62,8 +62,9 @@ class ParsedRule:
     def _validate_at_most_one(values: list, rule_name: str, field_name: str) -> bool:
         if len(set(values)) > 1:
             logger.warning(
-                f'Rule {rule_name}: Found multiple values for field {field_name}. {values}'
-                f' Only zero or one are allowed. Please remove others.'
+                f'Rule `{rule_name}`: Found multiple values for field `{field_name}`.'
+                + f' {values=}'
+                + ' Only zero or one are allowed. Please remove others.'
             )
             return False
 
@@ -73,8 +74,9 @@ class ParsedRule:
     def _validate_exactly_one(values: list, rule_name: str, field_name: str) -> bool:
         if len(set(values)) != 1:
             logger.warning(
-                f'Rule {rule_name}: Found multiple values for field {field_name}. {values}'
-                f' Only exactly one is allowed. Please remove others.'
+                f'Rule `{rule_name}`: Found zero or multiple values for field `{field_name}`.'
+                + f' {values=}'
+                + ' Only exactly one is allowed. Please remove others.'
             )
             return False
 
@@ -90,7 +92,7 @@ class SortedRule:
 
 @dataclasses.dataclass
 class AccessControl:
-    default_policy: str
+    default_policy: config.AutheliaPolicy
     rules: list[SortedRule]
 
 
@@ -320,24 +322,24 @@ def write_config(
     access_control_data: dict, config_file: Path, backup_config_file: Path
 ) -> None:
     if not config_file.exists():
-        logger.error(f'Config file at {str(config_file)} does not exist')
+        logger.error(f'Config file at `{str(config_file)}` does not exist')
         exit(3)
 
     if not backup_config_file.exists():
         logger.info(
             'Backup file does not exist.'
-            + f' Creating one at {str(backup_config_file)}'
+            + f' Creating one at `{str(backup_config_file)}`'
         )
         shutil.copyfile(str(config_file), str(backup_config_file))
 
     yaml = StringYAML()
-    logger.debug(f'Reading config at {str(config_file)}')
+    logger.debug(f'Reading config at `{str(config_file)}`')
     with open(config_file, 'r') as file:
         try:
             authelia_config = yaml.load(file)
         except Exception as exception:
             logger.error(
-                f'Exception occurred while reading config file {str(config_file)}: {exception}'
+                f'Exception occurred while reading config file `{str(config_file)}`: {exception}'
             )
             exit(4)
 
@@ -345,26 +347,23 @@ def write_config(
     authelia_config[config.UPDATE_YAML_KEY] = access_control_data
     # logger.debug(f'Updated config:\n{yaml.dump(authelia_config)}')
 
-    logger.info(f'Writing config to {str(config_file)}')
+    logger.info(f'Writing config to `{str(config_file)}`')
     with open(config_file, 'w') as file:
         yaml.dump(authelia_config, file)
 
 
-def write_rules(rules: list[SortedRule], rules_file: Path) -> None:
+def write_access_control_data(access_control_data: dict, rules_file: Path) -> None:
     yaml = StringYAML()
-    logger.debug(f'Writing rules to {str(rules_file)}')
-    rules_as_dicts = [
-        dataclasses.asdict(rule, dict_factory=enum_as_value_factory) for rule in rules
-    ]
+    logger.debug(f'Writing rules to `{str(rules_file)}`')
     with open(rules_file, 'w') as file:
-        yaml.dump(rules_as_dicts, file)
+        yaml.dump(access_control_data, file)
 
 
 def restart_containers(parsed_containers: list[ParsedContainer]) -> None:
     logger.debug('Restarting Authelia containers...')
     for container in parsed_containers:
         if container.is_authelia:
-            logger.debug(f'Restarting {container.name}...')
+            logger.debug(f'Restarting `{container.name}`...')
             container.docker_container.restart()
 
     logger.info('Finished restarting Authelia containers.')

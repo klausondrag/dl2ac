@@ -4,9 +4,25 @@ from pathlib import Path
 from hypothesis import strategies as st
 from ruamel.yaml import YAML
 
+from dl2ac import config, models
+
 
 rule_name_strategy = st.text(
     alphabet=st.characters(exclude_characters=['.', '\n']), min_size=1
+)
+policy_strategy = st.sampled_from(config.AutheliaPolicy)
+priority_strategy = st.integers()
+
+policy_label_strategy = st.builds(
+    models.PolicyLabel,
+    rule_name=rule_name_strategy,
+    policy=policy_strategy,
+)
+
+priority_label_strategy = st.builds(
+    models.PriorityLabel,
+    rule_name=rule_name_strategy,
+    priority=priority_strategy,
 )
 
 sleep_at_start_n_seconds = '1'

@@ -1,2 +1,4 @@
+default_policy: deny
+rules:
 - name: one
   policy: one_factor
