@@ -2,16 +2,26 @@ import time
 from pathlib import Path
 
 from hypothesis import strategies as st
-from ruamel.yaml import YAML
 
 from dl2ac import config, models
 
 
+container_name_strategy = st.text()
 rule_name_strategy = st.text(
     alphabet=st.characters(exclude_characters=['.', '\n']), min_size=1
 )
+is_authelia_strategy = st.booleans()
+method_index_strategy = st.integers()
+method_value_strategy = st.sampled_from(models.AutheliaMethod)
 policy_strategy = st.sampled_from(config.AutheliaPolicy)
 rank_strategy = st.integers()
+
+method_label_strategy = st.builds(
+    models.MethodLabel,
+    rule_name=rule_name_strategy,
+    index=method_index_strategy,
+    method=method_value_strategy,
+)
 
 policy_label_strategy = st.builds(
     models.PolicyLabel,
@@ -39,7 +49,7 @@ def wait_for_file(file: Path, max_tries=10) -> None:
 
 
 def assert_file_contents(actual_file: Path, expected_file: Path) -> None:
-    yaml = YAML()
+    yaml = models.StringYaml()
 
     wait_for_file(actual_file)
     with open(actual_file, 'r') as file:

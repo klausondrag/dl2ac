@@ -4,7 +4,7 @@ import dataclasses
 import enum
 import shutil
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 
 from docker.models.containers import Container as DockerContainer
 from loguru import logger
@@ -14,8 +14,44 @@ from ruamel.yaml.compat import StringIO
 from dl2ac import config
 
 
+def _get_duplicates(values: list[Any]) -> list:
+    counter = collections.Counter(values)
+    duplicates = []
+    for value, count in counter.most_common():
+        if count <= 1:
+            break
+
+        duplicates.append(value)
+
+    return duplicates
+
+
+class AutheliaMethod(str, enum.Enum):
+    GET = 'GET'
+    HEAD = 'HEAD'
+    POST = 'POST'
+    PUT = 'PUT'
+    DELETE = 'DELETE'
+    CONNECT = 'CONNECT'
+    OPTIONS = 'OPTIONS'
+    TRACE = 'TRACE'
+    PATCH = 'PATCH'
+    PROPFIND = 'PROPFIND'
+    PROPPATCH = 'PROPPATCH'
+    MKCOL = 'MKCOL'
+    COPY = 'COPY'
+    MOVE = 'MOVE'
+    LOCK = 'LOCK'
+    UNLOCK = 'UNLOCK'
+
+
+allowed_authelia_method_values = config.allowed_enum_values(AutheliaMethod)
+logger.debug(f'Allowed Authelia Method Values: {allowed_authelia_method_values}')
+
+
 @dataclasses.dataclass
 class RawRule:
+    methods: list[tuple[int, AutheliaMethod]] = dataclasses.field(default_factory=list)
     policies: list[config.AutheliaPolicy] = dataclasses.field(default_factory=list)
     ranks: list[int] = dataclasses.field(default_factory=list)
 
@@ -23,6 +59,7 @@ class RawRule:
 @dataclasses.dataclass
 class ParsedRule:
     name: str
+    methods: list[AutheliaMethod]
     rank: int
     policy: config.AutheliaPolicy
 
@@ -33,9 +70,15 @@ class ParsedRule:
         rule_name: str,
         default_rule_policy: config.AutheliaPolicy,
     ) -> Self | None:
+        # A single container cannot have duplicate label keys
+        # because that's the design by docker.
+        # However, different containers can have duplicate label keys.
+        # So, we should still check for duplicates
+        # because our program allows for definitions on any container.
         if not all(
             validation_function(values, rule_name, field_name)
             for validation_function, values, field_name in [
+                (cls._validate_no_duplicate_indices, raw_rule.methods, 'methods'),
                 (cls._validate_at_most_one, raw_rule.policies, 'policy'),
                 (cls._validate_exactly_one, raw_rule.ranks, 'rank'),
             ]
@@ -46,6 +89,9 @@ class ParsedRule:
             )
             return None
 
+        # Sort methods by index (first value of tuple)
+        methods = [method for _, method in sorted(raw_rule.methods)]
+
         # We have ensured that the lists have exactly at most one unique value,
         # so we can safely access it with [0] if it exists.
         policy = (
@@ -54,12 +100,15 @@ class ParsedRule:
         rank = raw_rule.ranks[0]
         return cls(
             name=rule_name,
+            methods=methods,
             policy=policy,
             rank=rank,
         )
 
     @staticmethod
-    def _validate_at_most_one(values: list, rule_name: str, field_name: str) -> bool:
+    def _validate_at_most_one(
+        values: list[Any], rule_name: str, field_name: str
+    ) -> bool:
         if len(set(values)) > 1:
             logger.warning(
                 f'Rule `{rule_name}`: Found multiple values for field `{field_name}`.'
@@ -71,11 +120,30 @@ class ParsedRule:
         return True
 
     @staticmethod
-    def _validate_exactly_one(values: list, rule_name: str, field_name: str) -> bool:
+    def _validate_exactly_one(
+        values: list[Any], rule_name: str, field_name: str
+    ) -> bool:
         if len(set(values)) != 1:
             logger.warning(
                 f'Rule `{rule_name}`: Found zero or multiple values for field `{field_name}`.'
                 + f' {values=}'
+                + ' Only exactly one is allowed. Please remove others.'
+            )
+            return False
+
+        return True
+
+    @staticmethod
+    def _validate_no_duplicate_indices(
+        values: list[tuple[int, Any]], rule_name: str, field_name: str
+    ) -> bool:
+        indices = [index for index, *args in values]
+        duplicates = _get_duplicates(indices)
+
+        if len(duplicates) > 0:
+            logger.warning(
+                f'Rule `{rule_name}`: Found duplicate indices for field `{field_name}`.'
+                + f' {duplicates=}'
                 + ' Only exactly one is allowed. Please remove others.'
             )
             return False
@@ -87,6 +155,7 @@ class ParsedRule:
 @dataclasses.dataclass
 class SortedRule:
     name: str
+    methods: list[AutheliaMethod]
     policy: config.AutheliaPolicy
 
 
@@ -126,6 +195,47 @@ class RuleLabel(LabelBase, abc.ABC):
     @abc.abstractmethod
     def add_self_to(self, raw_rule: RawRule) -> None:
         pass
+
+
+@dataclasses.dataclass
+class MethodLabel(RuleLabel):
+    index: int
+    method: AutheliaMethod
+
+    @classmethod
+    def try_parse(cls, label_key: str, label_value: str) -> Self | None:
+        # 'dl2ac.rules.one.methods.1': 'OPTIONS'
+        # TODO: add option to use csv
+        # TODO: add debug logging
+        if match := config.METHODS_KEY_REGEX.match(label_key):
+            rule_name = match.group(1)
+            index_str = match.group(2)
+
+            try:
+                index = int(index_str)
+            except ValueError:
+                # TODO: add container id, container name, and label_key
+                logger.warning(
+                    f'Invalid index value found, cannot parse `{index_str}` as int.'
+                )
+                return None
+
+            try:
+                method = AutheliaMethod[label_value.upper()]
+            except KeyError:
+                # TODO: add container id, container name, and label_key
+                logger.warning(
+                    f'Invalid method value found, cannot parse `{label_value}` as a method.'
+                    f' Must be one of [{allowed_authelia_method_values}].'
+                )
+                return None
+
+            return cls(rule_name=rule_name, index=index, method=method)
+
+        return None
+
+    def add_self_to(self, raw_rule: RawRule) -> None:
+        raw_rule.methods.append((self.index, self.method))
 
 
 @dataclasses.dataclass
@@ -185,7 +295,7 @@ class RankLabel(RuleLabel):
         raw_rule.ranks.append(self.rank)
 
 
-supported_label_types = [IsAutheliaLabel, PolicyLabel, RankLabel]
+supported_label_types = [IsAutheliaLabel, MethodLabel, PolicyLabel, RankLabel]
 
 
 @dataclasses.dataclass
@@ -290,19 +400,22 @@ def sort_rules(parsed_rules: list[ParsedRule]) -> list[SortedRule]:
         return []
 
     ranks = [parsed_rule.rank for parsed_rule in parsed_rules]
-    counter = collections.Counter(ranks)
-    # most_common(1) returns a list of the most common element: [(rank, count)]
-    # so [0][1] gets the count of the most common element
-    if counter.most_common(1)[0][1] > 1:
+    duplicates = _get_duplicates(ranks)
+    if len(duplicates) > 0:
         logger.warning(
             'Found multiple rules with the same rank.'
-            ' This might cause frequent Authelia restarts.'
-            ' Please ensure each rank is only set once.'
+            + f' {duplicates=}'
+            + ' This might cause frequent Authelia restarts.'
+            + ' Please ensure each rank is only set once.'
         )
 
     parsed_rules.sort(key=lambda rule: (rule.rank, rule.name))
     return [
-        SortedRule(name=parsed_rule.name, policy=parsed_rule.policy)
+        SortedRule(
+            name=parsed_rule.name,
+            methods=parsed_rule.methods,
+            policy=parsed_rule.policy,
+        )
         for parsed_rule in parsed_rules
     ]
 
@@ -333,7 +446,7 @@ def write_config(
         )
         shutil.copyfile(str(config_file), str(backup_config_file))
 
-    yaml = StringYAML()
+    yaml = StringYaml()
     logger.debug(f'Reading config at `{str(config_file)}`')
     with open(config_file, 'r') as file:
         try:
@@ -354,7 +467,7 @@ def write_config(
 
 
 def write_access_control_data(access_control_data: dict, rules_file: Path) -> None:
-    yaml = StringYAML()
+    yaml = StringYaml()
     logger.debug(f'Writing rules to `{str(rules_file)}`')
     with open(rules_file, 'w') as file:
         yaml.dump(access_control_data, file)
@@ -370,19 +483,43 @@ def restart_containers(parsed_containers: list[ParsedContainer]) -> None:
     logger.info('Finished restarting Authelia containers.')
 
 
-def enum_as_value_factory(data) -> dict:
-    def convert_value(obj):
+def enum_as_value_factory(data: list[tuple[str, Any]]) -> dict[str, Any]:
+    def convert_value(obj: Any) -> Any:
         if isinstance(obj, enum.Enum):
             return obj.value
+        elif isinstance(obj, list):
+            # Lists should already be recursed into according to
+            # https://docs.python.org/3.12/library/dataclasses.html#dataclasses.asdict
+            # So, not sure why this branch is necessary here.
+            # But without it, the result is incorrect.
+            # rules.methods would be list[enum.Enum],
+            # but we want it to be list[str]
+            return [convert_value(item) for item in obj]
 
         return obj
 
     return dict((k, convert_value(v)) for k, v in data)
 
 
-# See https://yaml.readthedocs.io/en/latest/example/#output-of-dump-as-a-string
-class StringYAML(YAML):
+class StringYaml(YAML):
+    def __init__(self) -> None:
+        # Use the RoundTrip option to ensure that the config that we write
+        # is most similar to the version we read.
+        # This should preserve comments, order and other features.
+        # This way, our program only makes minimal changes to the configuration.
+        super().__init__(typ='rt')
+
+        # Make sure that various strings in the original config file
+        # such as secrets keep their quotation marks.
+        # Unfortunately, this does not add quotation marks
+        # to our own object AccessControl.
+        # To do that, we would have to wrap each string in a
+        # `SingleQuotedScalarString` object.
+        # See https://stackoverflow.com/a/39263202
+        self.preserve_quotes = True
+
     def dump(self, data, stream=None, **kw):
+        # See https://yaml.readthedocs.io/en/latest/example/#output-of-dump-as-a-string
         inefficient = False
         if stream is None:
             inefficient = True

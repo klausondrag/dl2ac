@@ -11,8 +11,8 @@ from tests import shared
 parsed_container_strategy = st.builds(
     models.ParsedContainer,
     docker_container=st.none(),
-    name=st.text(),
-    is_authelia=st.booleans(),
+    name=shared.container_name_strategy,
+    is_authelia=shared.is_authelia_strategy,
     labels=st.lists(st.nothing()),
 )
 
@@ -21,12 +21,13 @@ parsed_container_strategy = st.builds(
 sorted_rule_strategy = st.builds(
     models.SortedRule,
     name=shared.rule_name_strategy,
-    policy=st.sampled_from(config.AutheliaPolicy),
+    methods=st.lists(shared.method_value_strategy),
+    policy=shared.policy_strategy,
 )
 
 access_control_strategy = st.builds(
     models.AccessControl,
-    default_policy=st.sampled_from(config.AutheliaPolicy),
+    default_policy=shared.policy_strategy,
     rules=st.lists(sorted_rule_strategy, unique_by=lambda r: r.name),
 )
 
@@ -46,14 +47,14 @@ def containers_and_access_control(
     config.AutheliaPolicy,
     models.AccessControl,
 ]:
-    access_control = draw(access_control_strategy)
+    access_control: models.AccessControl = draw(access_control_strategy)
     n_sorted_rules = len(access_control.rules)
-    default_rule_policy = draw(shared.policy_strategy)
+    default_rule_policy: config.AutheliaPolicy = draw(shared.policy_strategy)
 
     ranks = sorted(
         draw(
             st.lists(
-                st.integers(),
+                shared.rank_strategy,
                 min_size=n_sorted_rules,
                 max_size=n_sorted_rules,
                 unique=True,
@@ -62,7 +63,31 @@ def containers_and_access_control(
     )
     labels: list[models.RuleLabel] = []
     label_strings: list[tuple[str, str]] = []
-    for sorted_rule, rank in zip(access_control.rules, ranks):
+    for rank, sorted_rule in zip(ranks, access_control.rules):
+        n_methods = len(sorted_rule.methods)
+        methods_indices: list[int] = sorted(
+            draw(
+                st.lists(
+                    shared.method_index_strategy,
+                    min_size=n_methods,
+                    max_size=n_methods,
+                    unique=True,
+                )
+            )
+        )
+        for index, method in zip(methods_indices, sorted_rule.methods):
+            method_label = models.MethodLabel(
+                rule_name=sorted_rule.name, index=index, method=method
+            )
+            labels.append(method_label)
+
+            method_label_string_key = config.METHODS_KEY_FORMAT.format(
+                rule_name=sorted_rule.name,
+                index=index,
+            )
+            method_label_string_value = method.value
+            label_strings.append((method_label_string_key, method_label_string_value))
+
         if sorted_rule.policy != default_rule_policy or draw(st.booleans()):
             # If sorted_rule.policy == default_rule_policy
             # we randomly skip adding the label
@@ -122,7 +147,7 @@ def containers_and_access_control(
         else:
             # If a container is not authelia
             # then an IsAutheliaLabel is optional
-            if draw(st.booleans()):
+            if draw(shared.is_authelia_strategy):
                 label_value = str(False).lower()
             else:
                 continue
@@ -199,3 +224,6 @@ def test_valid_to_authelia_data(
     )
 
     assert actual_access_control_dict == expected_access_control_dict
+
+
+# TODO: test invalid data

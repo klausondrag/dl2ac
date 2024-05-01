@@ -20,6 +20,10 @@ logger.debug(f'{IS_AUTHELIA_VALUE=}')
 LABEL_RULES_START_REGEX = rf'{LABEL_START}\.rules\.(.+)'
 LABEL_RULES_START_FORMAT = f'{LABEL_START}.rules.{{rule_name}}'
 
+# 'dl2ac.rules.one.methods.1': 'OPTIONS'
+METHODS_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.methods\.(.+)')
+METHODS_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.methods.{{index}}'
+
 # 'dl2ac.rules.one.policy': 'one_factor'
 POLICY_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.policy')
 POLICY_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.policy'

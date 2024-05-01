@@ -1,4 +1,7 @@
 default_policy: deny
 rules:
 - name: one
+  methods:
+    - "GET"
+    - "POST"
   policy: one_factor

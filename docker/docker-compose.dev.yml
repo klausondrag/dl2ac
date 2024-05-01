@@ -37,6 +37,8 @@ services:
     labels:
       - "dl2ac.rules.one.rank=20"
       - "dl2ac.rules.one.policy=one_factor"
+      - "dl2ac.rules.one.methods.1=GET"
+      - "dl2ac.rules.one.methods.2=POST"
 
 networks:
   proxy:
