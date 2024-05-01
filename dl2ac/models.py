@@ -205,6 +205,7 @@ class ParsedContainer:
     @classmethod
     def from_raw(cls, raw_container: RawContainer) -> Self | None:
         all_labels = cls.parse_labels(raw_container.labels)
+        logger.debug(f'{all_labels=}')
         if len(all_labels) == 0:
             return None
 

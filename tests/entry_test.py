@@ -1,7 +1,8 @@
 import dataclasses
+from typing import cast
+from unittest.mock import Mock
 
 from hypothesis import given, strategies as st
-from loguru import logger
 
 from dl2ac import config, entry, models
 from tests import shared
@@ -17,7 +18,7 @@ parsed_container_strategy = st.builds(
 
 sorted_rule_strategy = st.builds(
     models.SortedRule,
-    name=st.text(min_size=1),
+    name=shared.rule_name_strategy,
     policy=st.sampled_from(config.AutheliaPolicy),
 )
 
@@ -28,10 +29,21 @@ access_control_strategy = st.builds(
 )
 
 
+@dataclasses.dataclass
+class FakeDockerContainer:
+    name: str
+    labels: dict[str, str]
+
+
 @st.composite
 def containers_and_access_control(
     draw: st.DrawFn,
-) -> tuple[list[models.ParsedContainer], models.AccessControl, config.AutheliaPolicy]:
+) -> tuple[
+    list[FakeDockerContainer],
+    list[models.ParsedContainer],
+    config.AutheliaPolicy,
+    models.AccessControl,
+]:
     access_control = draw(access_control_strategy)
     n_sorted_rules = len(access_control.rules)
     default_rule_policy = draw(shared.policy_strategy)
@@ -46,7 +58,8 @@ def containers_and_access_control(
             )
         )
     )
-    labels = []
+    labels: list[models.RuleLabel] = []
+    label_strings: list[tuple[str, str]] = []
     for sorted_rule, priority in zip(access_control.rules, priorities):
         if sorted_rule.policy != default_rule_policy or draw(st.booleans()):
             # If sorted_rule.policy == default_rule_policy
@@ -56,13 +69,27 @@ def containers_and_access_control(
             )
             labels.append(policy_label)
 
+            policy_label_string_key = config.POLICY_KEY_FORMAT.format(
+                rule_name=sorted_rule.name
+            )
+            policy_label_string_value = sorted_rule.policy.value
+            label_strings.append((policy_label_string_key, policy_label_string_value))
+
         priority_label = models.PriorityLabel(
             rule_name=sorted_rule.name, priority=priority
         )
         labels.append(priority_label)
 
+        priority_label_string_key = config.PRIORITY_KEY_FORMAT.format(
+            rule_name=sorted_rule.name
+        )
+        priority_label_string_value = str(priority)
+        label_strings.append((priority_label_string_key, priority_label_string_value))
+
     n_labels = len(labels)
-    parsed_containers = draw(st.lists(parsed_container_strategy, min_size=1))
+    parsed_containers: list[models.ParsedContainer] = draw(
+        st.lists(parsed_container_strategy, min_size=1)
+    )
     n_containers = len(parsed_containers)
     container_indices = draw(
         st.lists(
@@ -74,31 +101,101 @@ def containers_and_access_control(
     for container_index, label in zip(container_indices, labels):
         parsed_containers[container_index].labels.append(label)
 
-    return parsed_containers, access_control, default_rule_policy
+    docker_containers = [
+        FakeDockerContainer(
+            name=parsed_container.name,
+            labels={},
+        )
+        for parsed_container in parsed_containers
+    ]
+    for container_index, (label_key, label_value) in zip(
+        container_indices, label_strings
+    ):
+        docker_containers[container_index].labels[label_key] = label_value
+
+    for docker_container, parsed_container in zip(docker_containers, parsed_containers):
+        label_key = config.IS_AUTHELIA_KEY
+        if parsed_container.is_authelia:
+            # If a container is authelia
+            # then an IsAutheliaLabel is mandatory
+            label_value = str(True).lower()
+        else:
+            # If a container is not authelia
+            # then an IsAutheliaLabel is optional
+            if draw(st.booleans()):
+                label_value = str(False).lower()
+            else:
+                continue
+
+        docker_container.labels[label_key] = label_value
+
+    container_indices_to_remove = {
+        index
+        for index, parsed_container in enumerate(parsed_containers)
+        if len(parsed_container.labels) == 0
+    }
+
+    docker_containers = [
+        docker_container
+        for index, docker_container in enumerate(docker_containers)
+        if index not in container_indices_to_remove
+    ]
+
+    parsed_containers = [
+        parsed_container
+        for index, parsed_container in enumerate(parsed_containers)
+        if index not in container_indices_to_remove
+    ]
+
+    for docker_container, parsed_container in zip(docker_containers, parsed_containers):
+        parsed_container.docker_container = cast(
+            models.DockerContainer, docker_container
+        )
+
+    return docker_containers, parsed_containers, default_rule_policy, access_control
 
 
 @given(containers_and_access_control())
-def test_to_authelia_data(
+def test_valid_load_containers(
     data: tuple[
-        list[models.ParsedContainer], models.AccessControl, config.AutheliaPolicy
+        list[FakeDockerContainer],
+        list[models.ParsedContainer],
+        config.AutheliaPolicy,
+        models.AccessControl,
+    ],
+):
+    docker_containers: list[FakeDockerContainer]
+    expected_parsed_containers: list[models.ParsedContainer]
+    docker_containers, expected_parsed_containers, _, _ = data
+
+    fake_client = Mock()
+    fake_client.containers.list.return_value = docker_containers
+    actual_parsed_containers = entry.load_containers(fake_client)
+
+    assert actual_parsed_containers == expected_parsed_containers
+
+
+@given(containers_and_access_control())
+def test_valid_to_authelia_data(
+    data: tuple[
+        list[FakeDockerContainer],
+        list[models.ParsedContainer],
+        config.AutheliaPolicy,
+        models.AccessControl,
     ],
 ) -> None:
     parsed_containers: list[models.ParsedContainer]
     expected_access_control: models.AccessControl
-    parsed_containers, expected_access_control, default_rule_policy = data
-    logger.debug(f'{parsed_containers=}')
-    logger.debug(f'{expected_access_control=}')
+    _, parsed_containers, default_rule_policy, expected_access_control = data
 
     actual_access_control_dict = entry.to_authelia_data(
         parsed_containers=parsed_containers,
         default_authelia_policy=expected_access_control.default_policy,
         default_rule_policy=default_rule_policy,
     )
-    logger.debug(f'{actual_access_control_dict=}')
 
     expected_access_control_dict = dataclasses.asdict(
         expected_access_control, dict_factory=models.enum_as_value_factory
     )
-    logger.debug(f'{expected_access_control_dict=}')
 
     assert actual_access_control_dict == expected_access_control_dict
