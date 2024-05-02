@@ -2,6 +2,11 @@ default_policy: deny
 rules:
 - name: one
   methods:
-    - "GET"
-    - "POST"
+  - GET
+  - POST
   policy: one_factor
+  subject:
+  - user:john
+  - - group:admin
+    - group:app-name
+  - group:super-admin

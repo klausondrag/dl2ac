@@ -39,6 +39,10 @@ services:
       - "dl2ac.rules.one.policy=one_factor"
       - "dl2ac.rules.one.methods.1=GET"
       - "dl2ac.rules.one.methods.2=POST"
+      - "dl2ac.rules.one.subject.1.1=user:john"
+      - "dl2ac.rules.one.subject.2.1=group:admin"
+      - "dl2ac.rules.one.subject.2.2=group:app-name"
+      - "dl2ac.rules.one.subject.3.1=group:super-admin"
 
 networks:
   proxy:

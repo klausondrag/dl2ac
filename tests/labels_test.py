@@ -14,7 +14,7 @@ def test_is_authelia_label(is_authelia: bool) -> None:
 
 @given(
     shared.rule_name_strategy,
-    shared.method_index_strategy,
+    shared.index_strategy,
     shared.method_value_strategy,
 )
 def test_method_label(
@@ -50,3 +50,27 @@ def test_rank_label(rule_name: str, rank: int) -> None:
     assert label is not None
     assert label.rule_name == rule_name
     assert label.rank == rank
+
+
+@given(
+    shared.rule_name_strategy,
+    shared.index_strategy,
+    shared.index_strategy,
+    shared.subject_strategy,
+)
+def test_subject_label(
+    rule_name: str,
+    outer_index: int,
+    inner_index: int,
+    subject: str,
+) -> None:
+    label_key = config.SUBJECT_KEY_FORMAT.format(
+        rule_name=rule_name, outer_index=outer_index, inner_index=inner_index
+    )
+    label_value = subject
+    label = models.SubjectLabel.try_parse(label_key, label_value)
+    assert label is not None
+    assert label.rule_name == rule_name
+    assert label.outer_index == outer_index
+    assert label.inner_index == inner_index
+    assert label.subject == subject

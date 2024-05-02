@@ -32,6 +32,12 @@ POLICY_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.policy'
 RANK_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.rank')
 RANK_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.rank'
 
+# 'dl2ac.rules.one.subjects.1.1': 'user:john'
+SUBJECT_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.subject\.(.+)\.(.+)')
+SUBJECT_KEY_FORMAT = (
+    f'{LABEL_RULES_START_FORMAT}.subject.{{outer_index}}.{{inner_index}}'
+)
+
 UPDATE_YAML_KEY = 'access_control'
 
 

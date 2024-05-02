@@ -11,15 +11,18 @@ rule_name_strategy = st.text(
     alphabet=st.characters(exclude_characters=['.', '\n']), min_size=1
 )
 is_authelia_strategy = st.booleans()
-method_index_strategy = st.integers()
+index_strategy = st.integers()
 method_value_strategy = st.sampled_from(models.AutheliaMethod)
 policy_strategy = st.sampled_from(config.AutheliaPolicy)
 rank_strategy = st.integers()
+subject_strategy = st.text(
+    alphabet=st.characters(exclude_characters=['\n']), min_size=1
+)
 
 method_label_strategy = st.builds(
     models.MethodLabel,
     rule_name=rule_name_strategy,
-    index=method_index_strategy,
+    index=index_strategy,
     method=method_value_strategy,
 )
 

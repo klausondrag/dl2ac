@@ -54,6 +54,7 @@ class RawRule:
     methods: list[tuple[int, AutheliaMethod]] = dataclasses.field(default_factory=list)
     policies: list[config.AutheliaPolicy] = dataclasses.field(default_factory=list)
     ranks: list[int] = dataclasses.field(default_factory=list)
+    subjects: list[tuple[int, int, str]] = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass
@@ -62,6 +63,7 @@ class ParsedRule:
     methods: list[AutheliaMethod]
     rank: int
     policy: config.AutheliaPolicy
+    subject: list[str | list[str]]
 
     @classmethod
     def from_raw(
@@ -78,9 +80,14 @@ class ParsedRule:
         if not all(
             validation_function(values, rule_name, field_name)
             for validation_function, values, field_name in [
-                (cls._validate_no_duplicate_indices, raw_rule.methods, 'methods'),
+                (cls._validate_no_duplicate_first_index, raw_rule.methods, 'methods'),
                 (cls._validate_at_most_one, raw_rule.policies, 'policy'),
                 (cls._validate_exactly_one, raw_rule.ranks, 'rank'),
+                (
+                    cls._validate_no_duplicate_first_second_indices,
+                    raw_rule.subjects,
+                    'subject',
+                ),
             ]
         ):
             logger.warning(
@@ -98,11 +105,34 @@ class ParsedRule:
             raw_rule.policies[0] if len(raw_rule.policies) == 1 else default_rule_policy
         )
         rank = raw_rule.ranks[0]
+
+        ordered_subject_dict: collections.defaultdict[
+            int, collections.defaultdict[int, str]
+        ] = collections.defaultdict(lambda: collections.defaultdict(str))
+        for outer_index, inner_index, subject in raw_rule.subjects:
+            ordered_subject_dict[outer_index][inner_index] = subject
+
+        ordered_subject_list: list[list[str]] = [
+            [
+                ordered_subject_dict[outer_index][inner_index]
+                for inner_index in sorted(ordered_subject_dict[outer_index].keys())
+            ]
+            for outer_index in sorted(ordered_subject_dict.keys())
+        ]
+
+        simplified_subject_list: list[str | list[str]] = [
+            outer_subject_list[0]
+            if len(outer_subject_list) == 1
+            else outer_subject_list
+            for outer_subject_list in ordered_subject_list
+        ]
+
         return cls(
             name=rule_name,
             methods=methods,
             policy=policy,
             rank=rank,
+            subject=simplified_subject_list,
         )
 
     @staticmethod
@@ -134,10 +164,29 @@ class ParsedRule:
         return True
 
     @staticmethod
-    def _validate_no_duplicate_indices(
+    def _validate_no_duplicate_first_index(
         values: list[tuple[int, Any]], rule_name: str, field_name: str
     ) -> bool:
         indices = [index for index, *args in values]
+        duplicates = _get_duplicates(indices)
+
+        if len(duplicates) > 0:
+            logger.warning(
+                f'Rule `{rule_name}`: Found duplicate indices for field `{field_name}`.'
+                + f' {duplicates=}'
+                + ' Only exactly one is allowed. Please remove others.'
+            )
+            return False
+
+        return True
+
+    @staticmethod
+    def _validate_no_duplicate_first_second_indices(
+        values: list[tuple[int, int, Any]], rule_name: str, field_name: str
+    ) -> bool:
+        indices = [
+            (outer_index, inner_index) for outer_index, inner_index, *args in values
+        ]
         duplicates = _get_duplicates(indices)
 
         if len(duplicates) > 0:
@@ -157,6 +206,7 @@ class SortedRule:
     name: str
     methods: list[AutheliaMethod]
     policy: config.AutheliaPolicy
+    subject: list[str | list[str]]
 
 
 @dataclasses.dataclass
@@ -295,7 +345,64 @@ class RankLabel(RuleLabel):
         raw_rule.ranks.append(self.rank)
 
 
-supported_label_types = [IsAutheliaLabel, MethodLabel, PolicyLabel, RankLabel]
+@dataclasses.dataclass
+class SubjectLabel(RuleLabel):
+    outer_index: int
+    inner_index: int
+    subject: str
+
+    @classmethod
+    def try_parse(cls, label_key: str, label_value: str) -> Self | None:
+        # 'dl2ac.rules.one.subjects.1.1': 'user:john'
+        # TODO: add option to use csv
+        # TODO: add debug logging
+        # TODO: add validation for `user:`, `group:` and `oauth2:client:`
+        # TODO: invert ifs
+        if match := config.SUBJECT_KEY_REGEX.match(label_key):
+            rule_name = match.group(1)
+            outer_index_str = match.group(2)
+            inner_index_str = match.group(3)
+
+            try:
+                outer_index = int(outer_index_str)
+            except ValueError:
+                # TODO: add container id, container name, and label_key
+                logger.warning(
+                    f'Invalid outer index value found, cannot parse `{outer_index_str}` as int.'
+                )
+                return None
+
+            try:
+                inner_index = int(inner_index_str)
+            except ValueError:
+                # TODO: add container id, container name, and label_key
+                logger.warning(
+                    f'Invalid inner index value found, cannot parse `{inner_index_str}` as int.'
+                )
+                return None
+
+            subject = label_value
+
+            return cls(
+                rule_name=rule_name,
+                outer_index=outer_index,
+                inner_index=inner_index,
+                subject=subject,
+            )
+
+        return None
+
+    def add_self_to(self, raw_rule: RawRule) -> None:
+        raw_rule.subjects.append((self.outer_index, self.inner_index, self.subject))
+
+
+supported_label_types = [
+    IsAutheliaLabel,
+    MethodLabel,
+    PolicyLabel,
+    RankLabel,
+    SubjectLabel,
+]
 
 
 @dataclasses.dataclass
@@ -415,6 +522,7 @@ def sort_rules(parsed_rules: list[ParsedRule]) -> list[SortedRule]:
             name=parsed_rule.name,
             methods=parsed_rule.methods,
             policy=parsed_rule.policy,
+            subject=parsed_rule.subject,
         )
         for parsed_rule in parsed_rules
     ]
