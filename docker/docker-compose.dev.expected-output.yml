@@ -5,6 +5,8 @@ rules:
   - GET
   - POST
   policy: one_factor
+  resources:
+  - '^/api([/?].*)?$'
   subject:
   - user:john
   - - group:admin

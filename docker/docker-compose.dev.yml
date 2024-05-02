@@ -35,10 +35,12 @@ services:
   whoami:
     image: containous/whoami
     labels:
-      - "dl2ac.rules.one.rank=20"
-      - "dl2ac.rules.one.policy=one_factor"
       - "dl2ac.rules.one.methods.1=GET"
       - "dl2ac.rules.one.methods.2=POST"
+      - "dl2ac.rules.one.methods.2=POST"
+      - "dl2ac.rules.one.policy=one_factor"
+      - "dl2ac.rules.one.rank=20"
+      - "dl2ac.rules.one.resources.1=^/api([/?].*)?$"
       - "dl2ac.rules.one.subject.1.1=user:john"
       - "dl2ac.rules.one.subject.2.1=group:admin"
       - "dl2ac.rules.one.subject.2.2=group:app-name"

@@ -54,6 +54,7 @@ class RawRule:
     methods: list[tuple[int, AutheliaMethod]] = dataclasses.field(default_factory=list)
     policies: list[config.AutheliaPolicy] = dataclasses.field(default_factory=list)
     ranks: list[int] = dataclasses.field(default_factory=list)
+    resources: list[tuple[int, str]] = dataclasses.field(default_factory=list)
     subjects: list[tuple[int, int, str]] = dataclasses.field(default_factory=list)
 
 
@@ -63,6 +64,7 @@ class ParsedRule:
     methods: list[AutheliaMethod]
     rank: int
     policy: config.AutheliaPolicy
+    resources: list[str]
     subject: list[str | list[str]]
 
     @classmethod
@@ -83,6 +85,11 @@ class ParsedRule:
                 (cls._validate_no_duplicate_first_index, raw_rule.methods, 'methods'),
                 (cls._validate_at_most_one, raw_rule.policies, 'policy'),
                 (cls._validate_exactly_one, raw_rule.ranks, 'rank'),
+                (
+                    cls._validate_no_duplicate_first_index,
+                    raw_rule.resources,
+                    'resources',
+                ),
                 (
                     cls._validate_no_duplicate_first_second_indices,
                     raw_rule.subjects,
@@ -105,6 +112,9 @@ class ParsedRule:
             raw_rule.policies[0] if len(raw_rule.policies) == 1 else default_rule_policy
         )
         rank = raw_rule.ranks[0]
+
+        # Sort resources by index (first value of tuple)
+        resources = [resource for _, resource in sorted(raw_rule.resources)]
 
         ordered_subject_dict: collections.defaultdict[
             int, collections.defaultdict[int, str]
@@ -132,6 +142,7 @@ class ParsedRule:
             methods=methods,
             policy=policy,
             rank=rank,
+            resources=resources,
             subject=simplified_subject_list,
         )
 
@@ -206,6 +217,7 @@ class SortedRule:
     name: str
     methods: list[AutheliaMethod]
     policy: config.AutheliaPolicy
+    resources: list[str]
     subject: list[str | list[str]]
 
 
@@ -346,6 +358,39 @@ class RankLabel(RuleLabel):
 
 
 @dataclasses.dataclass
+class ResourcesLabel(RuleLabel):
+    index: int
+    resource: str
+
+    @classmethod
+    def try_parse(cls, label_key: str, label_value: str) -> Self | None:
+        # 'dl2ac.rules.one.resources.1': '^/api([/?].*)?$'
+        if not (match := config.RESOURCES_KEY_REGEX.match(label_key)):
+            return None
+
+        # TODO: add option to use csv
+        # TODO: add debug logging
+        rule_name = match.group(1)
+        index_str = match.group(2)
+
+        try:
+            index = int(index_str)
+        except ValueError:
+            # TODO: add container id, container name, and label_key
+            logger.warning(
+                f'Invalid index value found, cannot parse `{index_str}` as int.'
+            )
+            return None
+
+        resource = label_value
+
+        return cls(rule_name=rule_name, index=index, resource=resource)
+
+    def add_self_to(self, raw_rule: RawRule) -> None:
+        raw_rule.resources.append((self.index, self.resource))
+
+
+@dataclasses.dataclass
 class SubjectLabel(RuleLabel):
     outer_index: int
     inner_index: int
@@ -400,6 +445,7 @@ supported_label_types = [
     MethodLabel,
     PolicyLabel,
     RankLabel,
+    ResourcesLabel,
     SubjectLabel,
 ]
 
@@ -521,6 +567,7 @@ def sort_rules(parsed_rules: list[ParsedRule]) -> list[SortedRule]:
             name=parsed_rule.name,
             methods=parsed_rule.methods,
             policy=parsed_rule.policy,
+            resources=parsed_rule.resources,
             subject=parsed_rule.subject,
         )
         for parsed_rule in parsed_rules

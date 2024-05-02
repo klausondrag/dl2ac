@@ -15,9 +15,10 @@ index_strategy = st.integers()
 method_value_strategy = st.sampled_from(models.AutheliaMethod)
 policy_strategy = st.sampled_from(config.AutheliaPolicy)
 rank_strategy = st.integers()
-subject_strategy = st.text(
+resource_value_strategy = st.text(
     alphabet=st.characters(exclude_characters=['\n']), min_size=1
 )
+subject_strategy = resource_value_strategy
 
 method_label_strategy = st.builds(
     models.MethodLabel,

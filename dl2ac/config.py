@@ -32,6 +32,10 @@ POLICY_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.policy'
 RANK_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.rank')
 RANK_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.rank'
 
+# 'dl2ac.rules.one.resources.1': '^/api([/?].*)?$'
+RESOURCES_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.resources\.(.+)')
+RESOURCES_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.resources.{{index}}'
+
 # 'dl2ac.rules.one.subjects.1.1': 'user:john'
 SUBJECT_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.subject\.(.+)\.(.+)')
 SUBJECT_KEY_FORMAT = (

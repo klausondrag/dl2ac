@@ -23,6 +23,7 @@ sorted_rule_strategy = st.builds(
     name=shared.rule_name_strategy,
     methods=st.lists(shared.method_value_strategy),
     policy=shared.policy_strategy,
+    resources=st.lists(shared.resource_value_strategy),
     subject=st.lists(
         st.one_of(
             shared.subject_strategy, st.lists(shared.subject_strategy, min_size=2)
@@ -63,6 +64,7 @@ def containers_and_access_control(
         add_methods_label(draw, labels, label_strings, sorted_rule)
         add_policy_label(draw, labels, label_strings, sorted_rule, default_rule_policy)
         add_rank_label(labels, label_strings, sorted_rule, rank)
+        add_resources_label(draw, labels, label_strings, sorted_rule)
         add_subjects_label(draw, labels, label_strings, sorted_rule)
 
     parsed_containers: list[models.ParsedContainer] = draw(
@@ -155,6 +157,28 @@ def add_rank_label(
     rank_label_string_key = config.RANK_KEY_FORMAT.format(rule_name=sorted_rule.name)
     rank_label_string_value = str(rank)
     label_strings.append((rank_label_string_key, rank_label_string_value))
+
+
+def add_resources_label(
+    draw: st.DrawFn,
+    labels: list[models.RuleLabel],
+    label_strings: list[tuple[str, str]],
+    sorted_rule: models.SortedRule,
+) -> None:
+    n_resources = len(sorted_rule.resources)
+    resources_indices = create_order_indices(draw, shared.index_strategy, n_resources)
+    for index, resource in zip(resources_indices, sorted_rule.resources):
+        resource_label = models.ResourcesLabel(
+            rule_name=sorted_rule.name, index=index, resource=resource
+        )
+        labels.append(resource_label)
+
+        resource_label_string_key = config.RESOURCES_KEY_FORMAT.format(
+            rule_name=sorted_rule.name,
+            index=index,
+        )
+        resource_label_string_value = resource
+        label_strings.append((resource_label_string_key, resource_label_string_value))
 
 
 def add_subjects_label(

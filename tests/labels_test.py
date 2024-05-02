@@ -55,6 +55,21 @@ def test_rank_label(rule_name: str, rank: int) -> None:
 @given(
     shared.rule_name_strategy,
     shared.index_strategy,
+    shared.resource_value_strategy,
+)
+def test_resource_label(rule_name: str, index: int, resource: str) -> None:
+    label_key = config.RESOURCES_KEY_FORMAT.format(rule_name=rule_name, index=index)
+    label_value = resource
+    label = models.ResourcesLabel.try_parse(label_key, label_value)
+    assert label is not None
+    assert label.rule_name == rule_name
+    assert label.index == index
+    assert label.resource == resource
+
+
+@given(
+    shared.rule_name_strategy,
+    shared.index_strategy,
     shared.index_strategy,
     shared.subject_strategy,
 )
