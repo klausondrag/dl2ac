@@ -227,15 +227,15 @@ class IsAutheliaLabel(LabelBase):
     @classmethod
     def try_parse(cls, label_key: str, label_value: str) -> Self | None:
         # 'dl2ac.is-authelia': true
+        if (
+            label_key != config.IS_AUTHELIA_KEY
+            or label_value.lower() != config.IS_AUTHELIA_VALUE
+        ):
+            return None
+
         # TODO: add debug logging
         # TODO: also support false to keep container inside logging
-        if (
-            label_key == config.IS_AUTHELIA_KEY
-            and label_value.lower() == config.IS_AUTHELIA_VALUE
-        ):
-            return cls()
-
-        return None
+        return cls()
 
 
 @dataclasses.dataclass
@@ -255,34 +255,34 @@ class MethodLabel(RuleLabel):
     @classmethod
     def try_parse(cls, label_key: str, label_value: str) -> Self | None:
         # 'dl2ac.rules.one.methods.1': 'OPTIONS'
+        if not (match := config.METHODS_KEY_REGEX.match(label_key)):
+            return None
+
         # TODO: add option to use csv
         # TODO: add debug logging
-        if match := config.METHODS_KEY_REGEX.match(label_key):
-            rule_name = match.group(1)
-            index_str = match.group(2)
+        rule_name = match.group(1)
+        index_str = match.group(2)
 
-            try:
-                index = int(index_str)
-            except ValueError:
-                # TODO: add container id, container name, and label_key
-                logger.warning(
-                    f'Invalid index value found, cannot parse `{index_str}` as int.'
-                )
-                return None
+        try:
+            index = int(index_str)
+        except ValueError:
+            # TODO: add container id, container name, and label_key
+            logger.warning(
+                f'Invalid index value found, cannot parse `{index_str}` as int.'
+            )
+            return None
 
-            try:
-                method = AutheliaMethod[label_value.upper()]
-            except KeyError:
-                # TODO: add container id, container name, and label_key
-                logger.warning(
-                    f'Invalid method value found, cannot parse `{label_value}` as a method.'
-                    f' Must be one of [{allowed_authelia_method_values}].'
-                )
-                return None
+        try:
+            method = AutheliaMethod[label_value.upper()]
+        except KeyError:
+            # TODO: add container id, container name, and label_key
+            logger.warning(
+                f'Invalid method value found, cannot parse `{label_value}` as a method.'
+                f' Must be one of [{allowed_authelia_method_values}].'
+            )
+            return None
 
-            return cls(rule_name=rule_name, index=index, method=method)
-
-        return None
+        return cls(rule_name=rule_name, index=index, method=method)
 
     def add_self_to(self, raw_rule: RawRule) -> None:
         raw_rule.methods.append((self.index, self.method))
@@ -295,23 +295,23 @@ class PolicyLabel(RuleLabel):
     @classmethod
     def try_parse(cls, label_key: str, label_value: str) -> Self | None:
         # 'dl2ac.rules.one.policy': 'one_factor'
+        if not (match := config.POLICY_KEY_REGEX.match(label_key)):
+            return None
+
         # TODO: add debug logging
-        if match := config.POLICY_KEY_REGEX.match(label_key):
-            rule_name = match.group(1)
+        rule_name = match.group(1)
 
-            try:
-                policy = config.AutheliaPolicy[label_value.upper()]
-            except KeyError:
-                # TODO: add container id, container name, and label_key
-                logger.warning(
-                    f'Invalid policy value found, cannot parse `{label_value}` as a policy.'
-                    f' Must be one of [{config.allowed_authelia_policy_values}].'
-                )
-                return None
+        try:
+            policy = config.AutheliaPolicy[label_value.upper()]
+        except KeyError:
+            # TODO: add container id, container name, and label_key
+            logger.warning(
+                f'Invalid policy value found, cannot parse `{label_value}` as a policy.'
+                f' Must be one of [{config.allowed_authelia_policy_values}].'
+            )
+            return None
 
-            return cls(rule_name=rule_name, policy=policy)
-
-        return None
+        return cls(rule_name=rule_name, policy=policy)
 
     def add_self_to(self, raw_rule: RawRule) -> None:
         raw_rule.policies.append(self.policy)
@@ -324,22 +324,22 @@ class RankLabel(RuleLabel):
     @classmethod
     def try_parse(cls, label_key: str, label_value: str) -> Self | None:
         # 'dl2ac.rules.one.rank': '20'
+        if not (match := config.RANK_KEY_REGEX.match(label_key)):
+            return None
+
         # TODO: add debug logging
-        if match := config.RANK_KEY_REGEX.match(label_key):
-            rule_name = match.group(1)
+        rule_name = match.group(1)
 
-            try:
-                rank = int(label_value)
-            except ValueError:
-                # TODO: add container id, container name, and label_key
-                logger.warning(
-                    f'Invalid rank value found, cannot parse `{label_value}` as int.'
-                )
-                return None
+        try:
+            rank = int(label_value)
+        except ValueError:
+            # TODO: add container id, container name, and label_key
+            logger.warning(
+                f'Invalid rank value found, cannot parse `{label_value}` as int.'
+            )
+            return None
 
-            return cls(rule_name=rule_name, rank=rank)
-
-        return None
+        return cls(rule_name=rule_name, rank=rank)
 
     def add_self_to(self, raw_rule: RawRule) -> None:
         raw_rule.ranks.append(self.rank)
@@ -354,43 +354,42 @@ class SubjectLabel(RuleLabel):
     @classmethod
     def try_parse(cls, label_key: str, label_value: str) -> Self | None:
         # 'dl2ac.rules.one.subjects.1.1': 'user:john'
+        if not (match := config.SUBJECT_KEY_REGEX.match(label_key)):
+            return None
+
         # TODO: add option to use csv
         # TODO: add debug logging
         # TODO: add validation for `user:`, `group:` and `oauth2:client:`
-        # TODO: invert ifs
-        if match := config.SUBJECT_KEY_REGEX.match(label_key):
-            rule_name = match.group(1)
-            outer_index_str = match.group(2)
-            inner_index_str = match.group(3)
+        rule_name = match.group(1)
+        outer_index_str = match.group(2)
+        inner_index_str = match.group(3)
 
-            try:
-                outer_index = int(outer_index_str)
-            except ValueError:
-                # TODO: add container id, container name, and label_key
-                logger.warning(
-                    f'Invalid outer index value found, cannot parse `{outer_index_str}` as int.'
-                )
-                return None
-
-            try:
-                inner_index = int(inner_index_str)
-            except ValueError:
-                # TODO: add container id, container name, and label_key
-                logger.warning(
-                    f'Invalid inner index value found, cannot parse `{inner_index_str}` as int.'
-                )
-                return None
-
-            subject = label_value
-
-            return cls(
-                rule_name=rule_name,
-                outer_index=outer_index,
-                inner_index=inner_index,
-                subject=subject,
+        try:
+            outer_index = int(outer_index_str)
+        except ValueError:
+            # TODO: add container id, container name, and label_key
+            logger.warning(
+                f'Invalid outer index value found, cannot parse `{outer_index_str}` as int.'
             )
+            return None
 
-        return None
+        try:
+            inner_index = int(inner_index_str)
+        except ValueError:
+            # TODO: add container id, container name, and label_key
+            logger.warning(
+                f'Invalid inner index value found, cannot parse `{inner_index_str}` as int.'
+            )
+            return None
+
+        subject = label_value
+
+        return cls(
+            rule_name=rule_name,
+            outer_index=outer_index,
+            inner_index=inner_index,
+            subject=subject,
+        )
 
     def add_self_to(self, raw_rule: RawRule) -> None:
         raw_rule.subjects.append((self.outer_index, self.inner_index, self.subject))
