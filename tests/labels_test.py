@@ -9,7 +9,8 @@ def test_is_authelia_label(is_authelia: bool) -> None:
     label_key = config.IS_AUTHELIA_KEY
     label_value = str(is_authelia).lower()
     label = models.IsAutheliaLabel.try_parse(label_key, label_value)
-    assert (label is not None) == is_authelia
+    assert label is not None
+    assert label.is_authelia == is_authelia
 
 
 @given(

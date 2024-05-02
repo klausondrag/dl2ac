@@ -236,18 +236,18 @@ class LabelBase(abc.ABC):
 
 @dataclasses.dataclass
 class IsAutheliaLabel(LabelBase):
+    is_authelia: bool
+
     @classmethod
     def try_parse(cls, label_key: str, label_value: str) -> Self | None:
         # 'dl2ac.is-authelia': true
-        if (
-            label_key != config.IS_AUTHELIA_KEY
-            or label_value.lower() != config.IS_AUTHELIA_VALUE
-        ):
+        if label_key != config.IS_AUTHELIA_KEY:
             return None
 
+        is_authelia = label_value.lower() == config.IS_AUTHELIA_VALUE
+
         # TODO: add debug logging
-        # TODO: also support false to keep container inside logging
-        return cls()
+        return cls(is_authelia=is_authelia)
 
 
 @dataclasses.dataclass
@@ -471,7 +471,10 @@ class ParsedContainer:
         if len(all_labels) == 0:
             return None
 
-        is_authelia = any(isinstance(label, IsAutheliaLabel) for label in all_labels)
+        is_authelia = any(
+            isinstance(label, IsAutheliaLabel) and label.is_authelia
+            for label in all_labels
+        )
         rule_labels = [label for label in all_labels if isinstance(label, RuleLabel)]
         return cls(
             docker_container=raw_container.docker_container,
