@@ -48,7 +48,10 @@ class RawRule:
             case labels.SubjectLabel:
                 self.subject.append(data)
             case _:
-                logger.error(f'Unknown label type. {type(label)=}, {label=}')
+                logger.error(
+                    f'Unknown label type: {type(label)=}, {label=}.'
+                    + ' Please report this error.'
+                )
 
 
 @dataclasses.dataclass
