@@ -4,89 +4,59 @@ from dl2ac import config, labels
 from tests import shared
 
 
-@given(shared.is_authelia_strategy)
-def test_is_authelia_label(is_authelia: bool) -> None:
+@given(shared.is_authelia_label_strategy)
+def test_is_authelia_label(expected_label: labels.IsAutheliaLabel) -> None:
     label_key = config.IS_AUTHELIA_KEY
-    label_value = str(is_authelia).lower()
-    label = labels.IsAutheliaLabel.try_parse(label_key, label_value)
-    assert label is not None
-    assert label.is_authelia == is_authelia
+    label_value = str(expected_label.is_authelia).lower()
+    actual_label = labels.IsAutheliaLabel.try_parse(label_key, label_value)
+    assert actual_label == expected_label
 
 
-@given(
-    shared.rule_name_strategy,
-    shared.index_strategy,
-    shared.method_value_strategy,
-)
-def test_method_label(
-    rule_name: str, index: int, method: labels.AutheliaMethod
-) -> None:
-    label_key = config.METHODS_KEY_FORMAT.format(rule_name=rule_name, index=index)
-    label_value = method.value
-    label = labels.MethodLabel.try_parse(label_key, label_value)
-    assert label is not None
-    assert label.rule_name == rule_name
-    assert label.index == index
-    assert label.method == method
-
-
-@given(
-    shared.rule_name_strategy,
-    shared.policy_strategy,
-)
-def test_policy_label(rule_name: str, policy: config.AutheliaPolicy) -> None:
-    label_key = config.POLICY_KEY_FORMAT.format(rule_name=rule_name)
-    label_value = policy.value
-    label = labels.PolicyLabel.try_parse(label_key, label_value)
-    assert label is not None
-    assert label.rule_name == rule_name
-    assert label.policy == policy
-
-
-@given(shared.rule_name_strategy, shared.rank_strategy)
-def test_rank_label(rule_name: str, rank: int) -> None:
-    label_key = config.RANK_KEY_FORMAT.format(rule_name=rule_name)
-    label_value = str(rank)
-    label = labels.RankLabel.try_parse(label_key, label_value)
-    assert label is not None
-    assert label.rule_name == rule_name
-    assert label.rank == rank
-
-
-@given(
-    shared.rule_name_strategy,
-    shared.index_strategy,
-    shared.resource_value_strategy,
-)
-def test_resource_label(rule_name: str, index: int, resource: str) -> None:
-    label_key = config.RESOURCES_KEY_FORMAT.format(rule_name=rule_name, index=index)
-    label_value = resource
-    label = labels.ResourcesLabel.try_parse(label_key, label_value)
-    assert label is not None
-    assert label.rule_name == rule_name
-    assert label.index == index
-    assert label.resource == resource
-
-
-@given(
-    shared.rule_name_strategy,
-    shared.index_strategy,
-    shared.index_strategy,
-    shared.subject_strategy,
-)
-def test_subject_label(
-    rule_name: str,
-    outer_index: int,
-    inner_index: int,
-    subject: str,
-) -> None:
-    label_key = config.SUBJECT_KEY_FORMAT.format(
-        rule_name=rule_name, outer_index=outer_index, inner_index=inner_index
+@given(shared.methods_label_strategy)
+def test_method_label(expected_label: labels.MethodLabel) -> None:
+    label_key = config.METHODS_KEY_FORMAT.format(
+        rule_name=expected_label.rule_name,
+        index=expected_label.index,
     )
-    label_value = subject
-    label = labels.SubjectLabel.try_parse(label_key, label_value)
-    assert label is not None
-    assert label.rule_name == rule_name
-    assert label.outer_index == outer_index
-    assert label.inner_index == inner_index
-    assert label.subject == subject
+    label_value = expected_label.method.value
+    actual_label = labels.MethodLabel.try_parse(label_key, label_value)
+    assert actual_label == expected_label
+
+
+@given(shared.policy_label_strategy)
+def test_policy_label(expected_label: labels.PolicyLabel) -> None:
+    label_key = config.POLICY_KEY_FORMAT.format(rule_name=expected_label.rule_name)
+    label_value = expected_label.policy.value
+    actual_label = labels.PolicyLabel.try_parse(label_key, label_value)
+    assert actual_label == expected_label
+
+
+@given(shared.rank_label_strategy)
+def test_rank_label(expected_label: labels.RankLabel) -> None:
+    label_key = config.RANK_KEY_FORMAT.format(rule_name=expected_label.rule_name)
+    label_value = str(expected_label.rank)
+    actual_label = labels.RankLabel.try_parse(label_key, label_value)
+    assert actual_label == expected_label
+
+
+@given(shared.resources_label_strategy)
+def test_resource_label(expected_label: labels.ResourcesLabel) -> None:
+    label_key = config.RESOURCES_KEY_FORMAT.format(
+        rule_name=expected_label.rule_name,
+        index=expected_label.index,
+    )
+    label_value = expected_label.resource
+    actual_label = labels.ResourcesLabel.try_parse(label_key, label_value)
+    assert actual_label == expected_label
+
+
+@given(shared.subject_label_strategy)
+def test_subject_label(expected_label: labels.SubjectLabel) -> None:
+    label_key = config.SUBJECT_KEY_FORMAT.format(
+        rule_name=expected_label.rule_name,
+        outer_index=expected_label.outer_index,
+        inner_index=expected_label.inner_index,
+    )
+    label_value = expected_label.subject
+    actual_label = labels.SubjectLabel.try_parse(label_key, label_value)
+    assert actual_label == expected_label

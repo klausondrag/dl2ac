@@ -21,9 +21,9 @@ parsed_container_strategy = st.builds(
 sorted_rule_strategy = st.builds(
     rules.SortedRule,
     name=shared.rule_name_strategy,
-    methods=st.lists(shared.method_value_strategy),
+    methods=st.lists(shared.methods_strategy),
     policy=shared.policy_strategy,
-    resources=st.lists(shared.resource_value_strategy),
+    resources=st.lists(shared.resources_strategy),
     subject=st.lists(
         st.one_of(
             shared.subject_strategy, st.lists(shared.subject_strategy, min_size=2)

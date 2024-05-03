@@ -10,21 +10,26 @@ container_name_strategy = st.text()
 rule_name_strategy = st.text(
     alphabet=st.characters(exclude_characters=['.', '\n']), min_size=1
 )
-is_authelia_strategy = st.booleans()
 index_strategy = st.integers()
-method_value_strategy = st.sampled_from(labels.AutheliaMethod)
+is_authelia_strategy = st.booleans()
+methods_strategy = st.sampled_from(labels.AutheliaMethod)
 policy_strategy = st.sampled_from(config.AutheliaPolicy)
 rank_strategy = st.integers()
-resource_value_strategy = st.text(
+resources_strategy = st.text(
     alphabet=st.characters(exclude_characters=['\n']), min_size=1
 )
-subject_strategy = resource_value_strategy
+subject_strategy = resources_strategy
 
-method_label_strategy = st.builds(
+is_authelia_label_strategy = st.builds(
+    labels.IsAutheliaLabel,
+    is_authelia=is_authelia_strategy,
+)
+
+methods_label_strategy = st.builds(
     labels.MethodLabel,
     rule_name=rule_name_strategy,
     index=index_strategy,
-    method=method_value_strategy,
+    method=methods_strategy,
 )
 
 policy_label_strategy = st.builds(
@@ -37,6 +42,21 @@ rank_label_strategy = st.builds(
     labels.RankLabel,
     rule_name=rule_name_strategy,
     rank=rank_strategy,
+)
+
+resources_label_strategy = st.builds(
+    labels.ResourcesLabel,
+    rule_name=rule_name_strategy,
+    index=index_strategy,
+    resource=resources_strategy,
+)
+
+subject_label_strategy = st.builds(
+    labels.SubjectLabel,
+    rule_name=rule_name_strategy,
+    outer_index=index_strategy,
+    inner_index=index_strategy,
+    subject=subject_strategy,
 )
 
 sleep_at_start_n_seconds = '1'
