@@ -3,7 +3,7 @@ from pathlib import Path
 
 from hypothesis import strategies as st
 
-from dl2ac import config, models
+from dl2ac import config, labels, rules
 
 
 container_name_strategy = st.text()
@@ -12,7 +12,7 @@ rule_name_strategy = st.text(
 )
 is_authelia_strategy = st.booleans()
 index_strategy = st.integers()
-method_value_strategy = st.sampled_from(models.AutheliaMethod)
+method_value_strategy = st.sampled_from(labels.AutheliaMethod)
 policy_strategy = st.sampled_from(config.AutheliaPolicy)
 rank_strategy = st.integers()
 resource_value_strategy = st.text(
@@ -21,20 +21,20 @@ resource_value_strategy = st.text(
 subject_strategy = resource_value_strategy
 
 method_label_strategy = st.builds(
-    models.MethodLabel,
+    labels.MethodLabel,
     rule_name=rule_name_strategy,
     index=index_strategy,
     method=method_value_strategy,
 )
 
 policy_label_strategy = st.builds(
-    models.PolicyLabel,
+    labels.PolicyLabel,
     rule_name=rule_name_strategy,
     policy=policy_strategy,
 )
 
 rank_label_strategy = st.builds(
-    models.RankLabel,
+    labels.RankLabel,
     rule_name=rule_name_strategy,
     rank=rank_strategy,
 )
@@ -53,7 +53,7 @@ def wait_for_file(file: Path, max_tries=10) -> None:
 
 
 def assert_file_contents(actual_file: Path, expected_file: Path) -> None:
-    yaml = models.StringYaml()
+    yaml = rules.StringYaml()
 
     wait_for_file(actual_file)
     with open(actual_file, 'r') as file:

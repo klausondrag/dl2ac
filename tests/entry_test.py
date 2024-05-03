@@ -4,12 +4,12 @@ from unittest.mock import Mock
 
 from hypothesis import given, strategies as st
 
-from dl2ac import config, entry, models
+from dl2ac import config, containers, entry, labels as dl2ac_labels, rules
 from tests import shared
 
 
 parsed_container_strategy = st.builds(
-    models.ParsedContainer,
+    containers.ParsedContainer,
     docker_container=st.none(),
     name=shared.container_name_strategy,
     is_authelia=shared.is_authelia_strategy,
@@ -19,7 +19,7 @@ parsed_container_strategy = st.builds(
 # Rules get sorted by first their rank, and second by their name.
 # So, rule names should be unique to assure stable sorting.
 sorted_rule_strategy = st.builds(
-    models.SortedRule,
+    rules.SortedRule,
     name=shared.rule_name_strategy,
     methods=st.lists(shared.method_value_strategy),
     policy=shared.policy_strategy,
@@ -32,7 +32,7 @@ sorted_rule_strategy = st.builds(
 )
 
 access_control_strategy = st.builds(
-    models.AccessControl,
+    rules.AccessControl,
     default_policy=shared.policy_strategy,
     rules=st.lists(sorted_rule_strategy, unique_by=lambda r: r.name),
 )
@@ -49,16 +49,16 @@ def containers_and_access_control(
     draw: st.DrawFn,
 ) -> tuple[
     list[FakeDockerContainer],
-    list[models.ParsedContainer],
+    list[containers.ParsedContainer],
     config.AutheliaPolicy,
-    models.AccessControl,
+    rules.AccessControl,
 ]:
-    access_control: models.AccessControl = draw(access_control_strategy)
+    access_control: rules.AccessControl = draw(access_control_strategy)
     n_sorted_rules = len(access_control.rules)
     default_rule_policy: config.AutheliaPolicy = draw(shared.policy_strategy)
 
     ranks = create_order_indices(draw, shared.rank_strategy, n_sorted_rules)
-    labels: list[models.RuleLabel] = []
+    labels: list[dl2ac_labels.RuleLabel] = []
     label_strings: list[tuple[str, str]] = []
     for rank, sorted_rule in zip(ranks, access_control.rules):
         add_methods_label(draw, labels, label_strings, sorted_rule)
@@ -67,7 +67,7 @@ def containers_and_access_control(
         add_resources_label(draw, labels, label_strings, sorted_rule)
         add_subjects_label(draw, labels, label_strings, sorted_rule)
 
-    parsed_containers: list[models.ParsedContainer] = draw(
+    parsed_containers: list[containers.ParsedContainer] = draw(
         st.lists(parsed_container_strategy, min_size=1)
     )
     container_indices = distribute_labels(draw, labels, parsed_containers)
@@ -101,14 +101,14 @@ def create_order_indices(
 
 def add_methods_label(
     draw: st.DrawFn,
-    labels: list[models.RuleLabel],
+    labels: list[dl2ac_labels.RuleLabel],
     label_strings: list[tuple[str, str]],
-    sorted_rule: models.SortedRule,
+    sorted_rule: rules.SortedRule,
 ) -> None:
     n_methods = len(sorted_rule.methods)
     methods_indices = create_order_indices(draw, shared.index_strategy, n_methods)
     for index, method in zip(methods_indices, sorted_rule.methods):
-        method_label = models.MethodLabel(
+        method_label = dl2ac_labels.MethodLabel(
             rule_name=sorted_rule.name, index=index, method=method
         )
         labels.append(method_label)
@@ -123,9 +123,9 @@ def add_methods_label(
 
 def add_policy_label(
     draw: st.DrawFn,
-    labels: list[models.RuleLabel],
+    labels: list[dl2ac_labels.RuleLabel],
     label_strings: list[tuple[str, str]],
-    sorted_rule: models.SortedRule,
+    sorted_rule: rules.SortedRule,
     default_rule_policy: config.AutheliaPolicy,
 ) -> None:
     # If sorted_rule.policy == default_rule_policy
@@ -133,7 +133,7 @@ def add_policy_label(
     if sorted_rule.policy == default_rule_policy and draw(st.booleans()):
         return
 
-    policy_label = models.PolicyLabel(
+    policy_label = dl2ac_labels.PolicyLabel(
         rule_name=sorted_rule.name, policy=sorted_rule.policy
     )
     labels.append(policy_label)
@@ -146,12 +146,12 @@ def add_policy_label(
 
 
 def add_rank_label(
-    labels: list[models.RuleLabel],
+    labels: list[dl2ac_labels.RuleLabel],
     label_strings: list[tuple[str, str]],
-    sorted_rule: models.SortedRule,
+    sorted_rule: rules.SortedRule,
     rank: int,
 ) -> None:
-    rank_label = models.RankLabel(rule_name=sorted_rule.name, rank=rank)
+    rank_label = dl2ac_labels.RankLabel(rule_name=sorted_rule.name, rank=rank)
     labels.append(rank_label)
 
     rank_label_string_key = config.RANK_KEY_FORMAT.format(rule_name=sorted_rule.name)
@@ -161,14 +161,14 @@ def add_rank_label(
 
 def add_resources_label(
     draw: st.DrawFn,
-    labels: list[models.RuleLabel],
+    labels: list[dl2ac_labels.RuleLabel],
     label_strings: list[tuple[str, str]],
-    sorted_rule: models.SortedRule,
+    sorted_rule: rules.SortedRule,
 ) -> None:
     n_resources = len(sorted_rule.resources)
     resources_indices = create_order_indices(draw, shared.index_strategy, n_resources)
     for index, resource in zip(resources_indices, sorted_rule.resources):
-        resource_label = models.ResourcesLabel(
+        resource_label = dl2ac_labels.ResourcesLabel(
             rule_name=sorted_rule.name, index=index, resource=resource
         )
         labels.append(resource_label)
@@ -183,9 +183,9 @@ def add_resources_label(
 
 def add_subjects_label(
     draw: st.DrawFn,
-    labels: list[models.RuleLabel],
+    labels: list[dl2ac_labels.RuleLabel],
     label_strings: list[tuple[str, str]],
-    sorted_rule: models.SortedRule,
+    sorted_rule: rules.SortedRule,
 ) -> None:
     n_outer_subjects = len(sorted_rule.subject)
     subject_outer_indices = create_order_indices(
@@ -194,7 +194,7 @@ def add_subjects_label(
     for outer_index, inner_list in zip(subject_outer_indices, sorted_rule.subject):
         if isinstance(inner_list, str):
             # Add directly
-            subject_label = models.SubjectLabel(
+            subject_label = dl2ac_labels.SubjectLabel(
                 rule_name=sorted_rule.name,
                 outer_index=outer_index,
                 inner_index=1,
@@ -216,7 +216,7 @@ def add_subjects_label(
             draw, shared.index_strategy, n_inner_subjects
         )
         for inner_index, subject in zip(subject_inner_indices, inner_list):
-            subject_label = models.SubjectLabel(
+            subject_label = dl2ac_labels.SubjectLabel(
                 rule_name=sorted_rule.name,
                 outer_index=outer_index,
                 inner_index=inner_index,
@@ -235,8 +235,8 @@ def add_subjects_label(
 
 def distribute_labels(
     draw: st.DrawFn,
-    labels: list[models.RuleLabel],
-    parsed_containers: list[models.ParsedContainer],
+    labels: list[dl2ac_labels.RuleLabel],
+    parsed_containers: list[containers.ParsedContainer],
 ) -> list[int]:
     n_labels = len(labels)
     n_containers = len(parsed_containers)
@@ -254,7 +254,7 @@ def distribute_labels(
 
 
 def create_docker_containers(
-    parsed_containers: list[models.ParsedContainer],
+    parsed_containers: list[containers.ParsedContainer],
 ) -> list[FakeDockerContainer]:
     docker_containers = [
         FakeDockerContainer(
@@ -281,7 +281,7 @@ def add_rule_labels(
 def add_is_authelia_labels(
     draw: st.DrawFn,
     docker_containers: list[FakeDockerContainer],
-    parsed_containers: list[models.ParsedContainer],
+    parsed_containers: list[containers.ParsedContainer],
 ) -> None:
     for docker_container, parsed_container in zip(docker_containers, parsed_containers):
         label_key = config.IS_AUTHELIA_KEY
@@ -302,8 +302,8 @@ def add_is_authelia_labels(
 
 def remove_containers_without_labels(
     docker_containers: list[FakeDockerContainer],
-    parsed_containers: list[models.ParsedContainer],
-) -> tuple[list[FakeDockerContainer], list[models.ParsedContainer]]:
+    parsed_containers: list[containers.ParsedContainer],
+) -> tuple[list[FakeDockerContainer], list[containers.ParsedContainer]]:
     container_indices_to_remove = {
         index
         for index, parsed_container in enumerate(parsed_containers)
@@ -327,11 +327,11 @@ def remove_containers_without_labels(
 
 def assign_docker_containers(
     docker_containers: list[FakeDockerContainer],
-    parsed_containers: list[models.ParsedContainer],
+    parsed_containers: list[containers.ParsedContainer],
 ) -> None:
     for docker_container, parsed_container in zip(docker_containers, parsed_containers):
         parsed_container.docker_container = cast(
-            models.DockerContainer, docker_container
+            containers.DockerContainer, docker_container
         )
 
 
@@ -339,13 +339,13 @@ def assign_docker_containers(
 def test_valid_load_containers(
     data: tuple[
         list[FakeDockerContainer],
-        list[models.ParsedContainer],
+        list[containers.ParsedContainer],
         config.AutheliaPolicy,
-        models.AccessControl,
+        rules.AccessControl,
     ],
 ):
     docker_containers: list[FakeDockerContainer]
-    expected_parsed_containers: list[models.ParsedContainer]
+    expected_parsed_containers: list[containers.ParsedContainer]
     docker_containers, expected_parsed_containers, _, _ = data
 
     fake_client = Mock()
@@ -359,13 +359,13 @@ def test_valid_load_containers(
 def test_valid_to_authelia_data(
     data: tuple[
         list[FakeDockerContainer],
-        list[models.ParsedContainer],
+        list[containers.ParsedContainer],
         config.AutheliaPolicy,
-        models.AccessControl,
+        rules.AccessControl,
     ],
 ) -> None:
-    parsed_containers: list[models.ParsedContainer]
-    expected_access_control: models.AccessControl
+    parsed_containers: list[containers.ParsedContainer]
+    expected_access_control: rules.AccessControl
     _, parsed_containers, default_rule_policy, expected_access_control = data
 
     actual_access_control_dict = entry.to_authelia_data(
@@ -375,7 +375,7 @@ def test_valid_to_authelia_data(
     )
 
     expected_access_control_dict = dataclasses.asdict(
-        expected_access_control, dict_factory=models.enum_as_value_factory
+        expected_access_control, dict_factory=rules.enum_as_value_factory
     )
 
     assert actual_access_control_dict == expected_access_control_dict

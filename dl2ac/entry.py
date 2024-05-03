@@ -12,7 +12,7 @@ from docker.client import DockerClient
 from loguru import logger
 from typing_extensions import Annotated
 
-from dl2ac import config, models
+from dl2ac import config, containers, labels, rules
 
 
 app = typer.Typer()
@@ -88,7 +88,7 @@ def run_loop(
 
         parsed_containers = load_containers(client)
 
-        if not models.has_authelia_containers(parsed_containers):
+        if not containers.has_authelia_containers(parsed_containers):
             logger.warning('No Authelia container found')
             continue
 
@@ -104,16 +104,16 @@ def run_loop(
             )
             continue
 
-        models.write_config(
+        rules.write_config(
             access_control_data=access_control_data,
             config_file=dynamic_config.authelia_config_file,
             backup_config_file=dynamic_config.backup_config_file,
         )
-        models.write_access_control_data(
+        rules.write_access_control_data(
             access_control_data=access_control_data,
             rules_file=dynamic_config.rules_file,
         )
-        models.restart_containers(parsed_containers)
+        containers.restart_containers(parsed_containers)
 
     logger.info(regular_exit_message, max_iterations)
 
@@ -172,16 +172,16 @@ def create_dynamic_config(
     return dynamic_config
 
 
-def load_containers(client: DockerClient) -> list[models.ParsedContainer]:
+def load_containers(client: DockerClient) -> list[containers.ParsedContainer]:
     docker_containers: list[DockerContainer] = client.containers.list()
     logger.info(f'Found {len(docker_containers)} containers')
 
-    raw_containers: list[models.RawContainer] = models.load_containers(
+    raw_containers: list[containers.RawContainer] = containers.load_containers(
         docker_containers
     )
     logger.debug(f'{raw_containers=}')
 
-    parsed_containers: list[models.ParsedContainer] = models.parse_containers(
+    parsed_containers: list[containers.ParsedContainer] = containers.parse_containers(
         raw_containers
     )
     logger.debug(f'{parsed_containers=}')
@@ -190,26 +190,26 @@ def load_containers(client: DockerClient) -> list[models.ParsedContainer]:
 
 
 def to_authelia_data(
-    parsed_containers: list[models.ParsedContainer],
+    parsed_containers: list[containers.ParsedContainer],
     default_authelia_policy: config.AutheliaPolicy,
     default_rule_policy: config.AutheliaPolicy,
 ) -> dict:
-    all_labels: list[models.RuleLabel] = models.load_rules(parsed_containers)
+    all_labels: list[labels.RuleLabel] = containers.load_rules(parsed_containers)
     logger.debug(f'{all_labels=}')
 
-    parsed_rules: list[models.ParsedRule] = models.parse_rules(
+    parsed_rules: list[rules.ParsedRule] = rules.parse_rules(
         all_labels, default_rule_policy
     )
     logger.debug(f'{parsed_rules=}')
 
-    sorted_rules: list[models.SortedRule] = models.sort_rules(parsed_rules)
+    sorted_rules: list[rules.SortedRule] = rules.sort_rules(parsed_rules)
     logger.debug(f'{sorted_rules=}')
 
-    access_control = models.to_access_control(sorted_rules, default_authelia_policy)
+    access_control = rules.to_access_control(sorted_rules, default_authelia_policy)
     logger.debug(f'{access_control=}')
 
     access_control_dict = dataclasses.asdict(
-        access_control, dict_factory=models.enum_as_value_factory
+        access_control, dict_factory=rules.enum_as_value_factory
     )
     logger.info(f'{access_control_dict=}')
 

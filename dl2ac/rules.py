@@ -1,4 +1,3 @@
-import abc
 import collections
 import dataclasses
 import enum
@@ -6,12 +5,11 @@ import shutil
 from pathlib import Path
 from typing import Any, Self
 
-from docker.models.containers import Container as DockerContainer
 from loguru import logger
 from ruamel.yaml import YAML
 from ruamel.yaml.compat import StringIO
 
-from dl2ac import config
+from dl2ac import config, labels
 
 
 def _get_duplicates(values: list[Any]) -> list:
@@ -26,42 +24,37 @@ def _get_duplicates(values: list[Any]) -> list:
     return duplicates
 
 
-class AutheliaMethod(str, enum.Enum):
-    GET = 'GET'
-    HEAD = 'HEAD'
-    POST = 'POST'
-    PUT = 'PUT'
-    DELETE = 'DELETE'
-    CONNECT = 'CONNECT'
-    OPTIONS = 'OPTIONS'
-    TRACE = 'TRACE'
-    PATCH = 'PATCH'
-    PROPFIND = 'PROPFIND'
-    PROPPATCH = 'PROPPATCH'
-    MKCOL = 'MKCOL'
-    COPY = 'COPY'
-    MOVE = 'MOVE'
-    LOCK = 'LOCK'
-    UNLOCK = 'UNLOCK'
-
-
-allowed_authelia_method_values = config.allowed_enum_values(AutheliaMethod)
-logger.debug(f'Allowed Authelia Method Values: {allowed_authelia_method_values}')
-
-
 @dataclasses.dataclass
 class RawRule:
-    methods: list[tuple[int, AutheliaMethod]] = dataclasses.field(default_factory=list)
+    methods: list[tuple[int, labels.AutheliaMethod]] = dataclasses.field(
+        default_factory=list
+    )
     policies: list[config.AutheliaPolicy] = dataclasses.field(default_factory=list)
     ranks: list[int] = dataclasses.field(default_factory=list)
     resources: list[tuple[int, str]] = dataclasses.field(default_factory=list)
     subjects: list[tuple[int, int, str]] = dataclasses.field(default_factory=list)
 
+    def add(self, label: labels.RuleLabel):
+        data = label.to_data()
+        match type(label):
+            case labels.MethodLabel:
+                self.methods.append(data)
+            case labels.PolicyLabel:
+                self.policies.append(data)
+            case labels.RankLabel:
+                self.ranks.append(data)
+            case labels.ResourcesLabel:
+                self.resources.append(data)
+            case labels.SubjectLabel:
+                self.subjects.append(data)
+            case _:
+                logger.error(f'Unknown label type. {type(label)=}, {label=}')
+
 
 @dataclasses.dataclass
 class ParsedRule:
     name: str
-    methods: list[AutheliaMethod]
+    methods: list[labels.AutheliaMethod]
     rank: int
     policy: config.AutheliaPolicy
     resources: list[str]
@@ -215,7 +208,7 @@ class ParsedRule:
 @dataclasses.dataclass
 class SortedRule:
     name: str
-    methods: list[AutheliaMethod]
+    methods: list[labels.AutheliaMethod]
     policy: config.AutheliaPolicy
     resources: list[str]
     subject: list[str | list[str]]
@@ -227,319 +220,14 @@ class AccessControl:
     rules: list[SortedRule]
 
 
-class LabelBase(abc.ABC):
-    @classmethod
-    @abc.abstractmethod
-    def try_parse(cls, label_key: str, label_value: str) -> Self | None:
-        pass
-
-
-@dataclasses.dataclass
-class IsAutheliaLabel(LabelBase):
-    is_authelia: bool
-
-    @classmethod
-    def try_parse(cls, label_key: str, label_value: str) -> Self | None:
-        # 'dl2ac.is-authelia': true
-        if label_key != config.IS_AUTHELIA_KEY:
-            return None
-
-        is_authelia = label_value.lower() == config.IS_AUTHELIA_VALUE
-
-        # TODO: add debug logging
-        return cls(is_authelia=is_authelia)
-
-
-@dataclasses.dataclass
-class RuleLabel(LabelBase, abc.ABC):
-    rule_name: str
-
-    @abc.abstractmethod
-    def add_self_to(self, raw_rule: RawRule) -> None:
-        pass
-
-
-@dataclasses.dataclass
-class MethodLabel(RuleLabel):
-    index: int
-    method: AutheliaMethod
-
-    @classmethod
-    def try_parse(cls, label_key: str, label_value: str) -> Self | None:
-        # 'dl2ac.rules.one.methods.1': 'OPTIONS'
-        if not (match := config.METHODS_KEY_REGEX.match(label_key)):
-            return None
-
-        # TODO: add option to use csv
-        # TODO: add debug logging
-        rule_name = match.group(1)
-        index_str = match.group(2)
-
-        try:
-            index = int(index_str)
-        except ValueError:
-            # TODO: add container id, container name, and label_key
-            logger.warning(
-                f'Invalid index value found, cannot parse `{index_str}` as int.'
-            )
-            return None
-
-        try:
-            method = AutheliaMethod[label_value.upper()]
-        except KeyError:
-            # TODO: add container id, container name, and label_key
-            logger.warning(
-                f'Invalid method value found, cannot parse `{label_value}` as a method.'
-                f' Must be one of [{allowed_authelia_method_values}].'
-            )
-            return None
-
-        return cls(rule_name=rule_name, index=index, method=method)
-
-    def add_self_to(self, raw_rule: RawRule) -> None:
-        raw_rule.methods.append((self.index, self.method))
-
-
-@dataclasses.dataclass
-class PolicyLabel(RuleLabel):
-    policy: config.AutheliaPolicy
-
-    @classmethod
-    def try_parse(cls, label_key: str, label_value: str) -> Self | None:
-        # 'dl2ac.rules.one.policy': 'one_factor'
-        if not (match := config.POLICY_KEY_REGEX.match(label_key)):
-            return None
-
-        # TODO: add debug logging
-        rule_name = match.group(1)
-
-        try:
-            policy = config.AutheliaPolicy[label_value.upper()]
-        except KeyError:
-            # TODO: add container id, container name, and label_key
-            logger.warning(
-                f'Invalid policy value found, cannot parse `{label_value}` as a policy.'
-                f' Must be one of [{config.allowed_authelia_policy_values}].'
-            )
-            return None
-
-        return cls(rule_name=rule_name, policy=policy)
-
-    def add_self_to(self, raw_rule: RawRule) -> None:
-        raw_rule.policies.append(self.policy)
-
-
-@dataclasses.dataclass
-class RankLabel(RuleLabel):
-    rank: int
-
-    @classmethod
-    def try_parse(cls, label_key: str, label_value: str) -> Self | None:
-        # 'dl2ac.rules.one.rank': '20'
-        if not (match := config.RANK_KEY_REGEX.match(label_key)):
-            return None
-
-        # TODO: add debug logging
-        rule_name = match.group(1)
-
-        try:
-            rank = int(label_value)
-        except ValueError:
-            # TODO: add container id, container name, and label_key
-            logger.warning(
-                f'Invalid rank value found, cannot parse `{label_value}` as int.'
-            )
-            return None
-
-        return cls(rule_name=rule_name, rank=rank)
-
-    def add_self_to(self, raw_rule: RawRule) -> None:
-        raw_rule.ranks.append(self.rank)
-
-
-@dataclasses.dataclass
-class ResourcesLabel(RuleLabel):
-    index: int
-    resource: str
-
-    @classmethod
-    def try_parse(cls, label_key: str, label_value: str) -> Self | None:
-        # 'dl2ac.rules.one.resources.1': '^/api([/?].*)?$'
-        if not (match := config.RESOURCES_KEY_REGEX.match(label_key)):
-            return None
-
-        # TODO: add option to use csv
-        # TODO: add debug logging
-        rule_name = match.group(1)
-        index_str = match.group(2)
-
-        try:
-            index = int(index_str)
-        except ValueError:
-            # TODO: add container id, container name, and label_key
-            logger.warning(
-                f'Invalid index value found, cannot parse `{index_str}` as int.'
-            )
-            return None
-
-        resource = label_value
-
-        return cls(rule_name=rule_name, index=index, resource=resource)
-
-    def add_self_to(self, raw_rule: RawRule) -> None:
-        raw_rule.resources.append((self.index, self.resource))
-
-
-@dataclasses.dataclass
-class SubjectLabel(RuleLabel):
-    outer_index: int
-    inner_index: int
-    subject: str
-
-    @classmethod
-    def try_parse(cls, label_key: str, label_value: str) -> Self | None:
-        # 'dl2ac.rules.one.subjects.1.1': 'user:john'
-        if not (match := config.SUBJECT_KEY_REGEX.match(label_key)):
-            return None
-
-        # TODO: add option to use csv
-        # TODO: add debug logging
-        # TODO: add validation for `user:`, `group:` and `oauth2:client:`
-        rule_name = match.group(1)
-        outer_index_str = match.group(2)
-        inner_index_str = match.group(3)
-
-        try:
-            outer_index = int(outer_index_str)
-        except ValueError:
-            # TODO: add container id, container name, and label_key
-            logger.warning(
-                f'Invalid outer index value found, cannot parse `{outer_index_str}` as int.'
-            )
-            return None
-
-        try:
-            inner_index = int(inner_index_str)
-        except ValueError:
-            # TODO: add container id, container name, and label_key
-            logger.warning(
-                f'Invalid inner index value found, cannot parse `{inner_index_str}` as int.'
-            )
-            return None
-
-        subject = label_value
-
-        return cls(
-            rule_name=rule_name,
-            outer_index=outer_index,
-            inner_index=inner_index,
-            subject=subject,
-        )
-
-    def add_self_to(self, raw_rule: RawRule) -> None:
-        raw_rule.subjects.append((self.outer_index, self.inner_index, self.subject))
-
-
-supported_label_types = [
-    IsAutheliaLabel,
-    MethodLabel,
-    PolicyLabel,
-    RankLabel,
-    ResourcesLabel,
-    SubjectLabel,
-]
-
-
-@dataclasses.dataclass
-class RawContainer:
-    docker_container: DockerContainer
-    name: str
-    labels: dict[str, str]
-
-
-@dataclasses.dataclass
-class ParsedContainer:
-    docker_container: DockerContainer
-    name: str
-    is_authelia: bool
-    labels: list[RuleLabel]
-
-    @classmethod
-    def from_raw(cls, raw_container: RawContainer) -> Self | None:
-        all_labels = cls.parse_labels(raw_container.labels)
-        logger.debug(f'{all_labels=}')
-        if len(all_labels) == 0:
-            return None
-
-        is_authelia = any(
-            isinstance(label, IsAutheliaLabel) and label.is_authelia
-            for label in all_labels
-        )
-        rule_labels = [label for label in all_labels if isinstance(label, RuleLabel)]
-        return cls(
-            docker_container=raw_container.docker_container,
-            name=raw_container.name,
-            is_authelia=is_authelia,
-            labels=rule_labels,
-        )
-
-    @staticmethod
-    def parse_labels(raw_labels: dict[str, str]) -> list[LabelBase]:
-        return [
-            label_object
-            for label_key, label_value in raw_labels.items()
-            for label_type in supported_label_types
-            if (label_object := label_type.try_parse(label_key, label_value))
-            is not None
-        ]
-
-
-def load_containers(
-    docker_containers: list[DockerContainer],
-) -> list[RawContainer]:
-    # TODO: handle DockerException
-    return [
-        RawContainer(
-            docker_container=docker_container,
-            name=docker_container.name,
-            labels=docker_container.labels,
-        )
-        for docker_container in docker_containers
-    ]
-
-
-def parse_containers(
-    raw_containers: list[RawContainer],
-) -> list[ParsedContainer]:
-    return [
-        parsed_container
-        for raw_container in raw_containers
-        if (parsed_container := ParsedContainer.from_raw(raw_container)) is not None
-    ]
-
-
-def has_authelia_containers(parsed_containers: list[ParsedContainer]) -> bool:
-    return any(container.is_authelia for container in parsed_containers)
-
-
-def load_rules(
-    parsed_containers: list[ParsedContainer],
-) -> list[RuleLabel]:
-    return [
-        label
-        for parsed_container in parsed_containers
-        for label in parsed_container.labels
-    ]
-
-
 def parse_rules(
-    label_list: list[RuleLabel],
+    label_list: list[labels.RuleLabel],
     default_rule_policy: config.AutheliaPolicy,
 ) -> list[ParsedRule]:
     raw_rules: dict[str, RawRule] = collections.defaultdict(RawRule)
     for label in label_list:
         rule = raw_rules[label.rule_name]
-        label.add_self_to(rule)
+        rule.add(label)
 
     parsed_rules = [
         parsed_rule
@@ -628,16 +316,6 @@ def write_access_control_data(access_control_data: dict, rules_file: Path) -> No
     logger.debug(f'Writing rules to `{str(rules_file)}`')
     with open(rules_file, 'w') as file:
         yaml.dump(access_control_data, file)
-
-
-def restart_containers(parsed_containers: list[ParsedContainer]) -> None:
-    logger.debug('Restarting Authelia containers...')
-    for container in parsed_containers:
-        if container.is_authelia:
-            logger.debug(f'Restarting `{container.name}`...')
-            container.docker_container.restart()
-
-    logger.info('Finished restarting Authelia containers.')
 
 
 def enum_as_value_factory(data: list[tuple[str, Any]]) -> dict[str, Any]:
