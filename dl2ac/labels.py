@@ -85,7 +85,7 @@ class RuleLabel(LabelBase, Generic[LabelDataType], abc.ABC):
 
 
 @dataclasses.dataclass
-class MethodLabel(RuleLabel[tuple[int, AutheliaMethod]]):
+class MethodsLabel(RuleLabel[tuple[int, AutheliaMethod]]):
     index: int
     method: AutheliaMethod
 
@@ -261,7 +261,7 @@ class SubjectLabel(RuleLabel[tuple[int, int, str]]):
 
 supported_label_types = [
     IsAutheliaLabel,
-    MethodLabel,
+    MethodsLabel,
     PolicyLabel,
     RankLabel,
     ResourcesLabel,

@@ -29,24 +29,24 @@ class RawRule:
     methods: list[tuple[int, labels.AutheliaMethod]] = dataclasses.field(
         default_factory=list
     )
-    policies: list[config.AutheliaPolicy] = dataclasses.field(default_factory=list)
-    ranks: list[int] = dataclasses.field(default_factory=list)
+    policy: list[config.AutheliaPolicy] = dataclasses.field(default_factory=list)
+    rank: list[int] = dataclasses.field(default_factory=list)
     resources: list[tuple[int, str]] = dataclasses.field(default_factory=list)
-    subjects: list[tuple[int, int, str]] = dataclasses.field(default_factory=list)
+    subject: list[tuple[int, int, str]] = dataclasses.field(default_factory=list)
 
     def add(self, label: labels.RuleLabel):
         data = label.to_data()
         match type(label):
-            case labels.MethodLabel:
+            case labels.MethodsLabel:
                 self.methods.append(data)
             case labels.PolicyLabel:
-                self.policies.append(data)
+                self.policy.append(data)
             case labels.RankLabel:
-                self.ranks.append(data)
+                self.rank.append(data)
             case labels.ResourcesLabel:
                 self.resources.append(data)
             case labels.SubjectLabel:
-                self.subjects.append(data)
+                self.subject.append(data)
             case _:
                 logger.error(f'Unknown label type. {type(label)=}, {label=}')
 
@@ -76,8 +76,8 @@ class ParsedRule:
             validation_function(values, rule_name, field_name)
             for validation_function, values, field_name in [
                 (cls._validate_no_duplicate_first_index, raw_rule.methods, 'methods'),
-                (cls._validate_at_most_one, raw_rule.policies, 'policy'),
-                (cls._validate_exactly_one, raw_rule.ranks, 'rank'),
+                (cls._validate_at_most_one, raw_rule.policy, 'policy'),
+                (cls._validate_exactly_one, raw_rule.rank, 'rank'),
                 (
                     cls._validate_no_duplicate_first_index,
                     raw_rule.resources,
@@ -85,7 +85,7 @@ class ParsedRule:
                 ),
                 (
                     cls._validate_no_duplicate_first_second_indices,
-                    raw_rule.subjects,
+                    raw_rule.subject,
                     'subject',
                 ),
             ]
@@ -102,9 +102,9 @@ class ParsedRule:
         # We have ensured that the lists have exactly at most one unique value,
         # so we can safely access it with [0] if it exists.
         policy = (
-            raw_rule.policies[0] if len(raw_rule.policies) == 1 else default_rule_policy
+            raw_rule.policy[0] if len(raw_rule.policy) == 1 else default_rule_policy
         )
-        rank = raw_rule.ranks[0]
+        rank = raw_rule.rank[0]
 
         # Sort resources by index (first value of tuple)
         resources = [resource for _, resource in sorted(raw_rule.resources)]
@@ -112,7 +112,7 @@ class ParsedRule:
         ordered_subject_dict: collections.defaultdict[
             int, collections.defaultdict[int, str]
         ] = collections.defaultdict(lambda: collections.defaultdict(str))
-        for outer_index, inner_index, subject in raw_rule.subjects:
+        for outer_index, inner_index, subject in raw_rule.subject:
             ordered_subject_dict[outer_index][inner_index] = subject
 
         ordered_subject_list: list[list[str]] = [

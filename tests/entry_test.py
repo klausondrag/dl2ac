@@ -65,7 +65,7 @@ def containers_and_access_control(
         add_policy_label(draw, labels, label_strings, sorted_rule, default_rule_policy)
         add_rank_label(labels, label_strings, sorted_rule, rank)
         add_resources_label(draw, labels, label_strings, sorted_rule)
-        add_subjects_label(draw, labels, label_strings, sorted_rule)
+        add_subject_label(draw, labels, label_strings, sorted_rule)
 
     parsed_containers: list[containers.ParsedContainer] = draw(
         st.lists(parsed_container_strategy, min_size=1)
@@ -108,7 +108,7 @@ def add_methods_label(
     n_methods = len(sorted_rule.methods)
     methods_indices = create_order_indices(draw, shared.index_strategy, n_methods)
     for index, method in zip(methods_indices, sorted_rule.methods):
-        method_label = dl2ac_labels.MethodLabel(
+        method_label = dl2ac_labels.MethodsLabel(
             rule_name=sorted_rule.name, index=index, method=method
         )
         labels.append(method_label)
@@ -181,7 +181,7 @@ def add_resources_label(
         label_strings.append((resource_label_string_key, resource_label_string_value))
 
 
-def add_subjects_label(
+def add_subject_label(
     draw: st.DrawFn,
     labels: list[dl2ac_labels.RuleLabel],
     label_strings: list[tuple[str, str]],

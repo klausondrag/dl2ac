@@ -26,7 +26,7 @@ is_authelia_label_strategy = st.builds(
 )
 
 methods_label_strategy = st.builds(
-    labels.MethodLabel,
+    labels.MethodsLabel,
     rule_name=rule_name_strategy,
     index=index_strategy,
     method=methods_strategy,

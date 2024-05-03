@@ -14,8 +14,8 @@ def test_is_authelia_label(expected_label: labels.IsAutheliaLabel) -> None:
 
 
 @given(shared.methods_label_strategy)
-def test_method_label(expected_label: labels.MethodLabel) -> None:
-    actual_label = labels.MethodLabel.try_parse(
+def test_methods_label(expected_label: labels.MethodsLabel) -> None:
+    actual_label = labels.MethodsLabel.try_parse(
         label_key=config.METHODS_KEY_FORMAT.format(
             rule_name=expected_label.rule_name,
             index=expected_label.index,
@@ -44,7 +44,7 @@ def test_rank_label(expected_label: labels.RankLabel) -> None:
 
 
 @given(shared.resources_label_strategy)
-def test_resource_label(expected_label: labels.ResourcesLabel) -> None:
+def test_resources_label(expected_label: labels.ResourcesLabel) -> None:
     actual_label = labels.ResourcesLabel.try_parse(
         label_key=config.RESOURCES_KEY_FORMAT.format(
             rule_name=expected_label.rule_name,
