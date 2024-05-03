@@ -12,10 +12,8 @@ LABEL_START = 'dl2ac'
 
 # 'dl2ac.is-authelia': true
 IS_AUTHELIA_KEY = f'{LABEL_START}.is-authelia'
-IS_AUTHELIA_VALUE = 'true'
 
 logger.debug(f'{IS_AUTHELIA_KEY=}')
-logger.debug(f'{IS_AUTHELIA_VALUE=}')
 
 LABEL_RULES_START_REGEX = rf'{LABEL_START}\.rules\.(.+)'
 LABEL_RULES_START_FORMAT = f'{LABEL_START}.rules.{{rule_name}}'
