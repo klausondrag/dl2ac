@@ -27,6 +27,7 @@ def _get_duplicates(values: list[Any]) -> list:
 @dataclasses.dataclass
 class RawRule:
     domain: list[tuple[int, str]] = dataclasses.field(default_factory=list)
+    domain_regex: list[tuple[int, str]] = dataclasses.field(default_factory=list)
     methods: list[tuple[int, labels.AutheliaMethod]] = dataclasses.field(
         default_factory=list
     )
@@ -40,6 +41,8 @@ class RawRule:
         match type(label):
             case labels.DomainLabel:
                 self.domain.append(data)
+            case labels.DomainRegexLabel:
+                self.domain_regex.append(data)
             case labels.MethodsLabel:
                 self.methods.append(data)
             case labels.PolicyLabel:
@@ -61,6 +64,7 @@ class RawRule:
 class ParsedRule:
     name: str
     domain: list[str]
+    domain_regex: list[str]
     methods: list[labels.AutheliaMethod]
     rank: int
     policy: config.AutheliaPolicy
@@ -83,6 +87,11 @@ class ParsedRule:
             validation_function(values, rule_name, field_name)
             for validation_function, values, field_name in [
                 (cls._validate_no_duplicate_first_index, raw_rule.domain, 'domain'),
+                (
+                    cls._validate_no_duplicate_first_index,
+                    raw_rule.domain_regex,
+                    'domain_regex',
+                ),
                 (cls._validate_no_duplicate_first_index, raw_rule.methods, 'methods'),
                 (cls._validate_at_most_one, raw_rule.policy, 'policy'),
                 (cls._validate_exactly_one, raw_rule.rank, 'rank'),
@@ -106,6 +115,11 @@ class ParsedRule:
 
         # Sort domain by index (first value of tuple)
         domain = [domain for _, domain in sorted(raw_rule.domain)]
+
+        # Sort domain_regex by index (first value of tuple)
+        domain_regex = [
+            domain_regex for _, domain_regex in sorted(raw_rule.domain_regex)
+        ]
 
         # Sort methods by index (first value of tuple)
         methods = [method for _, method in sorted(raw_rule.methods)]
@@ -144,6 +158,7 @@ class ParsedRule:
         return cls(
             name=rule_name,
             domain=domain,
+            domain_regex=domain_regex,
             methods=methods,
             policy=policy,
             rank=rank,
@@ -221,6 +236,7 @@ class ParsedRule:
 class SortedRule:
     name: str
     domain: list[str]
+    domain_regex: list[str]
     methods: list[labels.AutheliaMethod]
     policy: config.AutheliaPolicy
     resources: list[str]
@@ -270,6 +286,7 @@ def sort_rules(parsed_rules: list[ParsedRule]) -> list[SortedRule]:
         SortedRule(
             name=parsed_rule.name,
             domain=parsed_rule.domain,
+            domain_regex=parsed_rule.domain_regex,
             methods=parsed_rule.methods,
             policy=parsed_rule.policy,
             resources=parsed_rule.resources,

@@ -22,6 +22,7 @@ sorted_rule_strategy = st.builds(
     rules.SortedRule,
     name=shared.rule_name_strategy,
     domain=st.lists(shared.domain_strategy),
+    domain_regex=st.lists(shared.domain_regex_strategy),
     methods=st.lists(shared.methods_strategy),
     policy=shared.policy_strategy,
     resources=st.lists(shared.resources_strategy),
@@ -63,6 +64,7 @@ def containers_and_access_control(
     label_strings: list[tuple[str, str]] = []
     for rank, sorted_rule in zip(ranks, access_control.rules):
         add_domain_label(draw, labels, label_strings, sorted_rule)
+        add_domain_regex_label(draw, labels, label_strings, sorted_rule)
         add_methods_label(draw, labels, label_strings, sorted_rule)
         add_policy_label(draw, labels, label_strings, sorted_rule, default_rule_policy)
         add_rank_label(labels, label_strings, sorted_rule, rank)
@@ -121,6 +123,32 @@ def add_domain_label(
         )
         domain_label_string_value = domain
         label_strings.append((domain_label_string_key, domain_label_string_value))
+
+
+def add_domain_regex_label(
+    draw: st.DrawFn,
+    labels: list[dl2ac_labels.RuleLabel],
+    label_strings: list[tuple[str, str]],
+    sorted_rule: rules.SortedRule,
+) -> None:
+    n_domain_regexes = len(sorted_rule.domain_regex)
+    domain_regex_indices = create_order_indices(
+        draw, shared.index_strategy, n_domain_regexes
+    )
+    for index, domain_regex in zip(domain_regex_indices, sorted_rule.domain_regex):
+        domain_regex_label = dl2ac_labels.DomainRegexLabel(
+            rule_name=sorted_rule.name, index=index, domain_regex=domain_regex
+        )
+        labels.append(domain_regex_label)
+
+        domain_regex_label_string_key = config.DOMAIN_REGEX_KEY_FORMAT.format(
+            rule_name=sorted_rule.name,
+            index=index,
+        )
+        domain_regex_label_string_value = domain_regex
+        label_strings.append(
+            (domain_regex_label_string_key, domain_regex_label_string_value)
+        )
 
 
 def add_methods_label(

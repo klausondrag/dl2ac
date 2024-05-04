@@ -116,6 +116,37 @@ class DomainLabel(RuleLabel[tuple[int, str]]):
 
 
 @dataclasses.dataclass
+class DomainRegexLabel(RuleLabel[tuple[int, str]]):
+    index: int
+    domain_regex: str
+
+    label_key_parser: ClassVar[parsers.Parser[tuple[str, int]]] = (
+        parsers.RuleWithOneIndexRegexParser(regex=config.DOMAIN_REGEX_KEY_REGEX)
+    )
+    label_value_parser: ClassVar[parsers.Parser[str]] = parsers.StringParser()
+
+    @classmethod
+    def try_parse(cls, label_key: str, label_value: str) -> Self | None:
+        # 'dl2ac.rules.one.domain_regex.1': '^user-(?P<User>\w+)\.example\.com$'
+        label_key_data: tuple[str, int] | None = cls.label_key_parser.from_str(
+            label_key
+        )
+        if label_key_data is None:
+            return None
+
+        label_value_data: str | None = cls.label_value_parser.from_str(label_value)
+        if label_value_data is None:
+            return None
+
+        rule_name, index = label_key_data
+        domain_regex = label_value_data
+        return cls(rule_name=rule_name, index=index, domain_regex=domain_regex)
+
+    def to_data(self) -> tuple[int, str]:
+        return self.index, self.domain_regex
+
+
+@dataclasses.dataclass
 class MethodsLabel(RuleLabel[tuple[int, AutheliaMethod]]):
     index: int
     method: AutheliaMethod
@@ -293,6 +324,7 @@ class SubjectLabel(RuleLabel[tuple[int, int, str]]):
 supported_label_types = [
     IsAutheliaLabel,
     DomainLabel,
+    DomainRegexLabel,
     MethodsLabel,
     PolicyLabel,
     RankLabel,

@@ -3,12 +3,32 @@ rules:
 - name: one
   domain:
   - '*.example.com'
+  domain_regex:
+  - ^user-(?P<User>\w+)\.example\.com$
+  - ^group-(?P<Group>\w+)\.example\.com$
   methods:
   - GET
   - POST
   policy: one_factor
   resources:
-  - '^/api([/?].*)?$'
+  - ^/api([/?].*)?$
+  subject:
+  - user:john
+  - - group:admin
+    - group:app-name
+  - group:super-admin
+- name: two
+  domain:
+  - '*.example.com'
+  domain_regex:
+  - ^user-(?P<User>\w+)\.example\.com$
+  - ^group-(?P<Group>\w+)\.example\.com$
+  methods:
+  - GET
+  - POST
+  policy: one_factor
+  resources:
+  - ^/api([/?].*)?$
   subject:
   - user:john
   - - group:admin

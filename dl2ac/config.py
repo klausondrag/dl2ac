@@ -22,6 +22,12 @@ LABEL_RULES_START_FORMAT = f'{LABEL_START}.rules.{{rule_name}}'
 DOMAIN_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.domain\.(?P<index>.+)')
 DOMAIN_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.domain.{{index}}'
 
+# 'dl2ac.rules.one.domain_regex.1': '^user-(?P<User>\w+)\.example\.com$'
+DOMAIN_REGEX_KEY_REGEX = re.compile(
+    rf'{LABEL_RULES_START_REGEX}\.domain_regex\.(?P<index>.+)'
+)
+DOMAIN_REGEX_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.domain_regex.{{index}}'
+
 # 'dl2ac.rules.one.methods.1': 'OPTIONS'
 METHODS_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.methods\.(?P<index>.+)')
 METHODS_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.methods.{{index}}'

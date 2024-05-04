@@ -25,6 +25,18 @@ def test_domain_label(expected_label: labels.DomainLabel) -> None:
     assert actual_label == expected_label
 
 
+@given(shared.domain_regex_label_strategy)
+def test_domain_regex_label(expected_label: labels.DomainRegexLabel) -> None:
+    actual_label = labels.DomainRegexLabel.try_parse(
+        label_key=config.DOMAIN_REGEX_KEY_FORMAT.format(
+            rule_name=expected_label.rule_name,
+            index=expected_label.index,
+        ),
+        label_value=expected_label.domain_regex,
+    )
+    assert actual_label == expected_label
+
+
 @given(shared.methods_label_strategy)
 def test_methods_label(expected_label: labels.MethodsLabel) -> None:
     actual_label = labels.MethodsLabel.try_parse(

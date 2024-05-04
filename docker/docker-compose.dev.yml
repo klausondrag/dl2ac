@@ -32,20 +32,46 @@ services:
     labels:
       - "dl2ac.is-authelia=true"
 
-  whoami:
+  whoami1:
     image: containous/whoami
     labels:
-      - "dl2ac.rules.one.domain.1=*.example.com"
-      - "dl2ac.rules.one.methods.1=GET"
-      - "dl2ac.rules.one.methods.2=POST"
-      - "dl2ac.rules.one.methods.2=POST"
-      - "dl2ac.rules.one.policy=one_factor"
-      - "dl2ac.rules.one.rank=20"
-      - "dl2ac.rules.one.resources.1=^/api([/?].*)?$"
-      - "dl2ac.rules.one.subject.1.1=user:john"
-      - "dl2ac.rules.one.subject.2.1=group:admin"
-      - "dl2ac.rules.one.subject.2.2=group:app-name"
-      - "dl2ac.rules.one.subject.3.1=group:super-admin"
+      dl2ac.rules.one.domain.1: '*.example.com'
+      # Please note that regular expressions in this label format require
+      # Single backslash and use of single quotes
+      dl2ac.rules.one.domain_regex.1: '^user-(?P<User>\w+)\.example\.com$'
+      dl2ac.rules.one.domain_regex.2: '^group-(?P<Group>\w+)\.example\.com$'
+      dl2ac.rules.one.methods.1: GET
+      dl2ac.rules.one.methods.2: POST
+      dl2ac.rules.one.policy: one_factor
+      dl2ac.rules.one.rank: 10
+      # Please note that regular expressions in this label format require
+      # Single backslash and use of single quotes
+      dl2ac.rules.one.resources.1: '^/api([/?].*)?$'
+      dl2ac.rules.one.subject.1.1: user:john
+      dl2ac.rules.one.subject.2.1: group:admin
+      dl2ac.rules.one.subject.2.2: group:app-name
+      dl2ac.rules.one.subject.3.1: group:super-admin
+
+  whoami2:
+    image: containous/whoami
+    labels:
+      - "dl2ac.rules.two.domain.1=*.example.com"
+      # Please note that regular expressions in this label format require
+      # Double backslash and use of no quotes
+      - "dl2ac.rules.two.domain_regex.1=^user-(?P<User>\\w+)\\.example\\.com$"
+      - "dl2ac.rules.two.domain_regex.2=^group-(?P<Group>\\w+)\\.example\\.com$"
+      - "dl2ac.rules.two.methods.1=GET"
+      - "dl2ac.rules.two.methods.2=POST"
+      - "dl2ac.rules.two.methods.2=POST"
+      - "dl2ac.rules.two.policy=one_factor"
+      - "dl2ac.rules.two.rank=20"
+      # Please note that regular expressions in this label format require
+      # Double backslash and use of no quotes
+      - "dl2ac.rules.two.resources.1=^/api([/?].*)?$"
+      - "dl2ac.rules.two.subject.1.1=user:john"
+      - "dl2ac.rules.two.subject.2.1=group:admin"
+      - "dl2ac.rules.two.subject.2.2=group:app-name"
+      - "dl2ac.rules.two.subject.3.1=group:super-admin"
 
 networks:
   proxy:
