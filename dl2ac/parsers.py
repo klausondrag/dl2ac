@@ -103,7 +103,7 @@ class RuleRegexParser(Parser[str]):
         if not (match := self.regex.match(value)):
             return None
 
-        rule_name = match.group(1)
+        rule_name = match.group('rule_name')
         return rule_name
 
 
@@ -117,8 +117,8 @@ class RuleWithOneIndexRegexParser(Parser[tuple[str, int]]):
         if not (match := self.regex.match(value)):
             return None
 
-        rule_name = match.group(1)
-        index = self.index_parser.from_str(match.group(2))
+        rule_name = match.group('rule_name')
+        index = self.index_parser.from_str(match.group('index'))
         if index is None:
             return None
 
@@ -135,12 +135,12 @@ class RuleWithTwoIndicesRegexParser(Parser[tuple[str, int, int]]):
         if not (match := self.regex.match(value)):
             return None
 
-        rule_name = match.group(1)
-        outer_index = self.index_parser.from_str(match.group(2))
+        rule_name = match.group('rule_name')
+        outer_index = self.index_parser.from_str(match.group('outer_index'))
         if outer_index is None:
             return None
 
-        inner_index = self.index_parser.from_str(match.group(3))
+        inner_index = self.index_parser.from_str(match.group('inner_index'))
         if inner_index is None:
             return None
 

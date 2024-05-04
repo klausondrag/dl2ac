@@ -15,11 +15,11 @@ IS_AUTHELIA_KEY = f'{LABEL_START}.is-authelia'
 
 logger.debug(f'{IS_AUTHELIA_KEY=}')
 
-LABEL_RULES_START_REGEX = rf'{LABEL_START}\.rules\.(.+)'
+LABEL_RULES_START_REGEX = rf'{LABEL_START}\.rules\.(?P<rule_name>.+)'
 LABEL_RULES_START_FORMAT = f'{LABEL_START}.rules.{{rule_name}}'
 
 # 'dl2ac.rules.one.methods.1': 'OPTIONS'
-METHODS_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.methods\.(.+)')
+METHODS_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.methods\.(?P<index>.+)')
 METHODS_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.methods.{{index}}'
 
 # 'dl2ac.rules.one.policy': 'one_factor'
@@ -31,11 +31,15 @@ RANK_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.rank')
 RANK_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.rank'
 
 # 'dl2ac.rules.one.resources.1': '^/api([/?].*)?$'
-RESOURCES_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.resources\.(.+)')
+RESOURCES_KEY_REGEX = re.compile(
+    rf'{LABEL_RULES_START_REGEX}\.resources\.(?P<index>.+)'
+)
 RESOURCES_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.resources.{{index}}'
 
 # 'dl2ac.rules.one.subjects.1.1': 'user:john'
-SUBJECT_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.subject\.(.+)\.(.+)')
+SUBJECT_KEY_REGEX = re.compile(
+    rf'{LABEL_RULES_START_REGEX}\.subject\.(?P<outer_index>.+)\.(?P<inner_index>.+)'
+)
 SUBJECT_KEY_FORMAT = (
     f'{LABEL_RULES_START_FORMAT}.subject.{{outer_index}}.{{inner_index}}'
 )
