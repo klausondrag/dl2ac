@@ -11,18 +11,25 @@ rule_name_strategy = st.text(
     alphabet=st.characters(exclude_characters=['.', '\n']), min_size=1
 )
 index_strategy = st.integers()
+
 is_authelia_strategy = st.booleans()
+domain_strategy = st.text(alphabet=st.characters(exclude_characters=['\n']), min_size=1)
 methods_strategy = st.sampled_from(labels.AutheliaMethod)
 policy_strategy = st.sampled_from(config.AutheliaPolicy)
 rank_strategy = st.integers()
-resources_strategy = st.text(
-    alphabet=st.characters(exclude_characters=['\n']), min_size=1
-)
+resources_strategy = domain_strategy
 subject_strategy = resources_strategy
 
 is_authelia_label_strategy = st.builds(
     labels.IsAutheliaLabel,
     is_authelia=is_authelia_strategy,
+)
+
+domain_label_strategy = st.builds(
+    labels.DomainLabel,
+    rule_name=rule_name_strategy,
+    index=index_strategy,
+    domain=domain_strategy,
 )
 
 methods_label_strategy = st.builds(

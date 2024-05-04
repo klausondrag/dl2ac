@@ -26,6 +26,7 @@ def _get_duplicates(values: list[Any]) -> list:
 
 @dataclasses.dataclass
 class RawRule:
+    domain: list[tuple[int, str]] = dataclasses.field(default_factory=list)
     methods: list[tuple[int, labels.AutheliaMethod]] = dataclasses.field(
         default_factory=list
     )
@@ -37,6 +38,8 @@ class RawRule:
     def add(self, label: labels.RuleLabel):
         data = label.to_data()
         match type(label):
+            case labels.DomainLabel:
+                self.domain.append(data)
             case labels.MethodsLabel:
                 self.methods.append(data)
             case labels.PolicyLabel:
@@ -57,6 +60,7 @@ class RawRule:
 @dataclasses.dataclass
 class ParsedRule:
     name: str
+    domain: list[str]
     methods: list[labels.AutheliaMethod]
     rank: int
     policy: config.AutheliaPolicy
@@ -78,6 +82,7 @@ class ParsedRule:
         if not all(
             validation_function(values, rule_name, field_name)
             for validation_function, values, field_name in [
+                (cls._validate_no_duplicate_first_index, raw_rule.domain, 'domain'),
                 (cls._validate_no_duplicate_first_index, raw_rule.methods, 'methods'),
                 (cls._validate_at_most_one, raw_rule.policy, 'policy'),
                 (cls._validate_exactly_one, raw_rule.rank, 'rank'),
@@ -98,6 +103,9 @@ class ParsedRule:
                 f' Skipping it. Please fix above issues to add it.'
             )
             return None
+
+        # Sort domain by index (first value of tuple)
+        domain = [domain for _, domain in sorted(raw_rule.domain)]
 
         # Sort methods by index (first value of tuple)
         methods = [method for _, method in sorted(raw_rule.methods)]
@@ -135,6 +143,7 @@ class ParsedRule:
 
         return cls(
             name=rule_name,
+            domain=domain,
             methods=methods,
             policy=policy,
             rank=rank,
@@ -211,6 +220,7 @@ class ParsedRule:
 @dataclasses.dataclass
 class SortedRule:
     name: str
+    domain: list[str]
     methods: list[labels.AutheliaMethod]
     policy: config.AutheliaPolicy
     resources: list[str]
@@ -259,6 +269,7 @@ def sort_rules(parsed_rules: list[ParsedRule]) -> list[SortedRule]:
     return [
         SortedRule(
             name=parsed_rule.name,
+            domain=parsed_rule.domain,
             methods=parsed_rule.methods,
             policy=parsed_rule.policy,
             resources=parsed_rule.resources,

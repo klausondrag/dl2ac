@@ -1,6 +1,8 @@
 default_policy: deny
 rules:
 - name: one
+  domain:
+  - '*.example.com'
   methods:
   - GET
   - POST

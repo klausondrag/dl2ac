@@ -13,6 +13,18 @@ def test_is_authelia_label(expected_label: labels.IsAutheliaLabel) -> None:
     assert actual_label == expected_label
 
 
+@given(shared.domain_label_strategy)
+def test_domain_label(expected_label: labels.DomainLabel) -> None:
+    actual_label = labels.DomainLabel.try_parse(
+        label_key=config.DOMAIN_KEY_FORMAT.format(
+            rule_name=expected_label.rule_name,
+            index=expected_label.index,
+        ),
+        label_value=expected_label.domain,
+    )
+    assert actual_label == expected_label
+
+
 @given(shared.methods_label_strategy)
 def test_methods_label(expected_label: labels.MethodsLabel) -> None:
     actual_label = labels.MethodsLabel.try_parse(

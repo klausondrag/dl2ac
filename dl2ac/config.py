@@ -18,6 +18,10 @@ logger.debug(f'{IS_AUTHELIA_KEY=}')
 LABEL_RULES_START_REGEX = rf'{LABEL_START}\.rules\.(?P<rule_name>.+)'
 LABEL_RULES_START_FORMAT = f'{LABEL_START}.rules.{{rule_name}}'
 
+# 'dl2ac.rules.one.domain.1': '*.example.com'
+DOMAIN_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.domain\.(?P<index>.+)')
+DOMAIN_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.domain.{{index}}'
+
 # 'dl2ac.rules.one.methods.1': 'OPTIONS'
 METHODS_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.methods\.(?P<index>.+)')
 METHODS_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.methods.{{index}}'

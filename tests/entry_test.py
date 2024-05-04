@@ -21,6 +21,7 @@ parsed_container_strategy = st.builds(
 sorted_rule_strategy = st.builds(
     rules.SortedRule,
     name=shared.rule_name_strategy,
+    domain=st.lists(shared.domain_strategy),
     methods=st.lists(shared.methods_strategy),
     policy=shared.policy_strategy,
     resources=st.lists(shared.resources_strategy),
@@ -61,6 +62,7 @@ def containers_and_access_control(
     labels: list[dl2ac_labels.RuleLabel] = []
     label_strings: list[tuple[str, str]] = []
     for rank, sorted_rule in zip(ranks, access_control.rules):
+        add_domain_label(draw, labels, label_strings, sorted_rule)
         add_methods_label(draw, labels, label_strings, sorted_rule)
         add_policy_label(draw, labels, label_strings, sorted_rule, default_rule_policy)
         add_rank_label(labels, label_strings, sorted_rule, rank)
@@ -97,6 +99,28 @@ def create_order_indices(
     )
 
     return indices
+
+
+def add_domain_label(
+    draw: st.DrawFn,
+    labels: list[dl2ac_labels.RuleLabel],
+    label_strings: list[tuple[str, str]],
+    sorted_rule: rules.SortedRule,
+) -> None:
+    n_domains = len(sorted_rule.domain)
+    domain_indices = create_order_indices(draw, shared.index_strategy, n_domains)
+    for index, domain in zip(domain_indices, sorted_rule.domain):
+        domain_label = dl2ac_labels.DomainLabel(
+            rule_name=sorted_rule.name, index=index, domain=domain
+        )
+        labels.append(domain_label)
+
+        domain_label_string_key = config.DOMAIN_KEY_FORMAT.format(
+            rule_name=sorted_rule.name,
+            index=index,
+        )
+        domain_label_string_value = domain
+        label_strings.append((domain_label_string_key, domain_label_string_value))
 
 
 def add_methods_label(

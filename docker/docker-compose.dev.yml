@@ -35,6 +35,7 @@ services:
   whoami:
     image: containous/whoami
     labels:
+      - "dl2ac.rules.one.domain.1=*.example.com"
       - "dl2ac.rules.one.methods.1=GET"
       - "dl2ac.rules.one.methods.2=POST"
       - "dl2ac.rules.one.methods.2=POST"
