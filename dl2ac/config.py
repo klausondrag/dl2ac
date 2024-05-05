@@ -22,7 +22,7 @@ LABEL_RULES_START_FORMAT = f'{LABEL_START}.rules.{{rule_name}}'
 DOMAIN_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.domain\.(?P<index>.+)')
 DOMAIN_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.domain.{{index}}'
 
-# 'dl2ac.rules.one.domains.add_traefik.1': 'whoami'
+# 'dl2ac.rules.one.domain_traefik.1': 'whoami'
 DOMAIN_ADD_TRAEFIK_KEY_REGEX = re.compile(
     rf'{LABEL_RULES_START_REGEX}\.domain_traefik\.(?P<index>.+)'
 )

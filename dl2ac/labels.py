@@ -218,7 +218,7 @@ class DomainAddTraefikLabel(RawRuleLabel):
 
     @classmethod
     def try_parse(cls, label_key: str, label_value: str) -> Self | None:
-        # 'dl2ac.rules.one.domains.add_traefik.1': 'whoami'
+        # 'dl2ac.rules.one.domain_traefik.1': 'whoami'
         label_key_data: tuple[str, int] | None = cls.label_key_parser.from_str(
             label_key
         )
