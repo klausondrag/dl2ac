@@ -13,7 +13,7 @@ def test_roundtrip_parsable_labels(expected_label: labels.ParsedLabel) -> None:
 @given(shared.parsable_label_strategy)
 def test_only_one_parsable_label_matches(expected_label: labels.ParsedLabel) -> None:
     label_key, label_value = expected_label.to_parsable_strings()
-    for label_class in labels.supported_parsable_label_types:
+    for label_class in labels.ParsedLabel.registered_parsable_label_types:
         if label_class == type(expected_label):
             continue
 

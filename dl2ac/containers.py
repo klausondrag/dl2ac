@@ -58,7 +58,7 @@ class ParsedContainer:
         return [
             label_object
             for label_key, label_value in raw_labels.items()
-            for label_type in dl2ac_labels.supported_parsable_label_types
+            for label_type in dl2ac_labels.ParsedLabel.registered_parsable_label_types
             if (label_object := label_type.try_parse(label_key, label_value))
             is not None
         ]

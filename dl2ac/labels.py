@@ -1,6 +1,7 @@
 import abc
 import dataclasses
 import enum
+import inspect
 from typing import ClassVar, Generic, Self, TypeVar
 
 from loguru import logger
@@ -32,6 +33,15 @@ logger.debug(f'Allowed Authelia Method Values: {allowed_authelia_method_values}'
 
 
 class ParsedLabel(abc.ABC):
+    registered_parsable_label_types: ClassVar[list[type[Self]]] = []
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        # Automatically add every subclass that is not abstract to the list of supported types.
+        # When parsing labels, every registered type will be tried out (try_parse).
+        if not inspect.isabstract(cls):
+            ParsedLabel.registered_parsable_label_types.append(cls)
+
     @classmethod
     @abc.abstractmethod
     def try_parse(cls, label_key: str, label_value: str) -> Self | None:
@@ -527,20 +537,6 @@ class SubjectLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, int, str]]):
 
     def to_data(self) -> tuple[int, int, str]:
         return self.outer_index, self.inner_index, self.subject
-
-
-supported_parsable_label_types: list[type[ParsedLabel]] = [
-    IsAutheliaLabel,
-    DomainLabel,
-    DomainAddTraefikLabel,
-    DomainRegexLabel,
-    MethodsLabel,
-    PolicyLabel,
-    RankLabel,
-    ResourcesLabel,
-    SubjectLabel,
-    TraefikRouterLabel,
-]
 
 
 def resolve(
