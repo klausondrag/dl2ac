@@ -17,23 +17,41 @@ parsed_container_strategy = st.builds(
     other_labels=st.lists(st.nothing()),
 )
 
-# Rules get sorted by first their rank, and second by their name.
-# So, rule names should be unique to assure stable sorting.
-sorted_rule_strategy = st.builds(
-    rules.SortedRule,
-    name=shared.rule_name_strategy,
-    domain=st.lists(shared.domain_strategy),
-    domain_regex=st.lists(shared.domain_regex_strategy),
-    methods=st.lists(shared.methods_strategy),
-    policy=shared.policy_strategy,
-    resources=st.lists(shared.resources_strategy),
-    subject=st.lists(
-        st.one_of(
-            shared.subject_strategy, st.lists(shared.subject_strategy, min_size=2)
-        )
+# At least one of domain or domain_regex must be provided.
+# So, pick one of these two strategies.
+sorted_rule_strategy = st.one_of(
+    st.builds(
+        rules.SortedRule,
+        name=shared.rule_name_strategy,
+        domain=st.lists(shared.domain_strategy, min_size=1),
+        domain_regex=st.lists(shared.domain_regex_strategy),
+        methods=st.lists(shared.methods_strategy),
+        policy=shared.policy_strategy,
+        resources=st.lists(shared.resources_strategy),
+        subject=st.lists(
+            st.one_of(
+                shared.subject_strategy, st.lists(shared.subject_strategy, min_size=2)
+            )
+        ),
+    ),
+    st.builds(
+        rules.SortedRule,
+        name=shared.rule_name_strategy,
+        domain=st.lists(shared.domain_strategy),
+        domain_regex=st.lists(shared.domain_regex_strategy, min_size=1),
+        methods=st.lists(shared.methods_strategy),
+        policy=shared.policy_strategy,
+        resources=st.lists(shared.resources_strategy),
+        subject=st.lists(
+            st.one_of(
+                shared.subject_strategy, st.lists(shared.subject_strategy, min_size=2)
+            )
+        ),
     ),
 )
 
+# Rules get sorted by first their rank, and second by their name.
+# So, rule names should be unique to assure stable sorting.
 access_control_strategy = st.builds(
     rules.AccessControl,
     default_policy=shared.policy_strategy,

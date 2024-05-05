@@ -86,7 +86,14 @@ class ParsedRule:
         # However, different containers can have duplicate label keys.
         # So, we should still check for duplicates
         # because our program allows for definitions on any container.
-        if not all(
+
+        # Don't use any(x() for x in validations)
+        # because we explicitly want to run all validation functions.
+        # The short circuit logic of any(generator) would stop evaluating
+        # after a single False value has been found.
+        # We want to show the user everything that is wrong with the rules
+        # so that the user does not have to re-run the program over and over.
+        validations = [
             validation_function(values, rule_name, field_name)
             for validation_function, values, field_name in [
                 (cls._validate_no_duplicate_first_index, raw_rule.domain, 'domain'),
@@ -114,7 +121,16 @@ class ParsedRule:
                     'subject',
                 ),
             ]
-        ):
+        ] + [
+            cls._validate_at_least_one_domain(
+                rule_name,
+                raw_rule.domain,
+                raw_rule.domain_from_traefik,
+                raw_rule.domain_regex,
+            )
+        ]
+
+        if not all(validations):
             logger.warning(
                 f'Rule `{rule_name}` is invalid because it has one or more invalid fields.'
                 f' Skipping it. Please fix above issues to add it.'
@@ -137,14 +153,23 @@ class ParsedRule:
             domain_regex for _, domain_regex in sorted(raw_rule.domain_regex)
         ]
 
+        # One or both of domain and domain_regex must be supplied.
+        # We have verified this above.
+
         # Sort methods by index (first value of tuple)
         methods = [method for _, method in sorted(raw_rule.methods)]
 
         # We have ensured that the lists have exactly at most one unique value,
         # so we can safely access it with [0] if it exists.
+        # Policy is a required field. This is always satisfied because
+        # if there is no policy specified,
+        # we will use the default rule policy.
         policy = (
             raw_rule.policy[0] if len(raw_rule.policy) == 1 else default_rule_policy
         )
+
+        # We have ensured that exactly one value exists,
+        # so we can safely access it with [0].
         rank = raw_rule.rank[0]
 
         # Sort resources by index (first value of tuple)
@@ -241,6 +266,22 @@ class ParsedRule:
                 f'Rule `{rule_name}`: Found duplicate indices for field `{field_name}`.'
                 + f' {duplicates=}'
                 + ' Only exactly one is allowed. Please remove others.'
+            )
+            return False
+
+        return True
+
+    @staticmethod
+    def _validate_at_least_one_domain(
+        rule_name: str,
+        domain: list[tuple[int, str]],
+        domain_from_traefik: list[tuple[int, str]],
+        domain_regex: list[tuple[int, str]],
+    ) -> bool:
+        if (len(domain) + len(domain_from_traefik) + len(domain_regex)) == 0:
+            logger.warning(
+                f'Rule `{rule_name}`: Found no value for `domain`, `domain_from_traefik`, and `domain_regex`.'
+                f' At least one value must be provided for any one of these three.'
             )
             return False
 
