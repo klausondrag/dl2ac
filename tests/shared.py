@@ -10,6 +10,7 @@ container_name_strategy = st.text()
 rule_name_strategy = st.text(
     alphabet=st.characters(exclude_characters=['.', '\n']), min_size=1
 )
+traefik_router_name_strategy = rule_name_strategy
 index_strategy = st.integers()
 
 is_authelia_strategy = st.booleans()
@@ -26,8 +27,28 @@ is_authelia_label_strategy = st.builds(
     is_authelia=is_authelia_strategy,
 )
 
+traefik_router_label_strategy = st.builds(
+    labels.TraefikRouterLabel,
+    traefik_router_name=traefik_router_name_strategy,
+    domain=domain_strategy,
+)
+
 domain_label_strategy = st.builds(
     labels.DomainLabel,
+    rule_name=rule_name_strategy,
+    index=index_strategy,
+    domain=domain_strategy,
+)
+
+domain_add_traefik_label_strategy = st.builds(
+    labels.DomainAddTraefikLabel,
+    rule_name=rule_name_strategy,
+    index=index_strategy,
+    traefik_router_name=traefik_router_name_strategy,
+)
+
+domain_from_traefik_label_strategy = st.builds(
+    labels.DomainFromTraefikLabel,
     rule_name=rule_name_strategy,
     index=index_strategy,
     domain=domain_strategy,

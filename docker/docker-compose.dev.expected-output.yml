@@ -3,6 +3,7 @@ rules:
 - name: one
   domain:
   - '*.example.com'
+  - whoami1.example.com
   domain_regex:
   - ^user-(?P<User>\w+)\.example\.com$
   - ^group-(?P<Group>\w+)\.example\.com$
@@ -20,6 +21,7 @@ rules:
 - name: two
   domain:
   - '*.example.com'
+  - whoami2.example.com
   domain_regex:
   - ^user-(?P<User>\w+)\.example\.com$
   - ^group-(?P<Group>\w+)\.example\.com$

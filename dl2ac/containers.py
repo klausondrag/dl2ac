@@ -19,7 +19,8 @@ class ParsedContainer:
     docker_container: DockerContainer
     name: str
     is_authelia: bool
-    labels: list[dl2ac_labels.RuleLabel]
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel]
+    other_labels: list[dl2ac_labels.ParsedLabel]
 
     @classmethod
     def from_raw(cls, raw_container: RawContainer) -> Self | None:
@@ -32,18 +33,28 @@ class ParsedContainer:
             isinstance(label, dl2ac_labels.IsAutheliaLabel) and label.is_authelia
             for label in all_labels
         )
-        rule_labels = [
-            label for label in all_labels if isinstance(label, dl2ac_labels.RuleLabel)
+        raw_rule_labels = [
+            label
+            for label in all_labels
+            if isinstance(label, dl2ac_labels.RawRuleLabel)
+        ]
+        other_labels = [
+            label
+            for label in all_labels
+            if isinstance(label, dl2ac_labels.ParsedLabel)
+            and not isinstance(label, dl2ac_labels.RawRuleLabel)
+            and not isinstance(label, dl2ac_labels.IsAutheliaLabel)
         ]
         return cls(
             docker_container=raw_container.docker_container,
             name=raw_container.name,
             is_authelia=is_authelia,
-            labels=rule_labels,
+            raw_rule_labels=raw_rule_labels,
+            other_labels=other_labels,
         )
 
     @staticmethod
-    def parse_labels(raw_labels: dict[str, str]) -> list[dl2ac_labels.LabelBase]:
+    def parse_labels(raw_labels: dict[str, str]) -> list[dl2ac_labels.ParsedLabel]:
         return [
             label_object
             for label_key, label_value in raw_labels.items()
@@ -69,11 +80,21 @@ def load_containers(
 
 def load_rules(
     parsed_containers: list[ParsedContainer],
-) -> list[dl2ac_labels.RuleLabel]:
+) -> list[dl2ac_labels.RawRuleLabel]:
     return [
         label
         for parsed_container in parsed_containers
-        for label in parsed_container.labels
+        for label in parsed_container.raw_rule_labels
+    ]
+
+
+def load_other_labels(
+    parsed_containers: list[ParsedContainer],
+) -> list[dl2ac_labels.ParsedLabel]:
+    return [
+        label
+        for parsed_container in parsed_containers
+        for label in parsed_container.other_labels
     ]
 
 

@@ -13,7 +13,8 @@ parsed_container_strategy = st.builds(
     docker_container=st.none(),
     name=shared.container_name_strategy,
     is_authelia=shared.is_authelia_strategy,
-    labels=st.lists(st.nothing()),
+    raw_rule_labels=st.lists(st.nothing()),
+    other_labels=st.lists(st.nothing()),
 )
 
 # Rules get sorted by first their rank, and second by their name.
@@ -59,24 +60,74 @@ def containers_and_access_control(
     n_sorted_rules = len(access_control.rules)
     default_rule_policy: config.AutheliaPolicy = draw(shared.policy_strategy)
 
+    n_simple_domain_labels_per_rule, traefik_router_names_per_rule = (
+        get_traefik_router_names(draw, access_control.rules)
+    )
+    assert len(n_simple_domain_labels_per_rule) == len(traefik_router_names_per_rule)
+    assert len(n_simple_domain_labels_per_rule) == len(access_control.rules)
+
     ranks = create_order_indices(draw, shared.rank_strategy, n_sorted_rules)
-    labels: list[dl2ac_labels.RuleLabel] = []
-    label_strings: list[tuple[str, str]] = []
-    for rank, sorted_rule in zip(ranks, access_control.rules):
-        add_domain_label(draw, labels, label_strings, sorted_rule)
-        add_domain_regex_label(draw, labels, label_strings, sorted_rule)
-        add_methods_label(draw, labels, label_strings, sorted_rule)
-        add_policy_label(draw, labels, label_strings, sorted_rule, default_rule_policy)
-        add_rank_label(labels, label_strings, sorted_rule, rank)
-        add_resources_label(draw, labels, label_strings, sorted_rule)
-        add_subject_label(draw, labels, label_strings, sorted_rule)
+    parsed_labels: list[dl2ac_labels.ParsedLabel] = []
+    parsed_label_strings: list[tuple[str, str]] = []
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel] = []
+    raw_rule_label_strings: list[tuple[str, str]] = []
+    for index, (
+        rank,
+        sorted_rule,
+        n_simple_domain_labels,
+        traefik_router_names,
+    ) in enumerate(
+        zip(
+            ranks,
+            access_control.rules,
+            n_simple_domain_labels_per_rule,
+            traefik_router_names_per_rule,
+        )
+    ):
+        add_domain_label(
+            draw,
+            raw_rule_labels,
+            raw_rule_label_strings,
+            sorted_rule,
+            n_simple_domain_labels,
+            traefik_router_names,
+            parsed_labels,
+            parsed_label_strings,
+        )
+        add_domain_regex_label(
+            draw, raw_rule_labels, raw_rule_label_strings, sorted_rule
+        )
+        add_methods_label(draw, raw_rule_labels, raw_rule_label_strings, sorted_rule)
+        add_policy_label(
+            draw,
+            raw_rule_labels,
+            raw_rule_label_strings,
+            sorted_rule,
+            default_rule_policy,
+        )
+        add_rank_label(raw_rule_labels, raw_rule_label_strings, sorted_rule, rank)
+        add_resources_label(draw, raw_rule_labels, raw_rule_label_strings, sorted_rule)
+        add_subject_label(draw, raw_rule_labels, raw_rule_label_strings, sorted_rule)
 
     parsed_containers: list[containers.ParsedContainer] = draw(
         st.lists(parsed_container_strategy, min_size=1)
     )
-    container_indices = distribute_labels(draw, labels, parsed_containers)
     docker_containers = create_docker_containers(parsed_containers)
-    add_rule_labels(container_indices, docker_containers, label_strings)
+
+    raw_rule_labels_container_indices = distribute_raw_rule_labels(
+        draw, raw_rule_labels, parsed_containers
+    )
+    add_rule_labels(
+        raw_rule_labels_container_indices, docker_containers, raw_rule_label_strings
+    )
+
+    parsed_labels_container_indices = distribute_parsed_labels(
+        draw, parsed_labels, parsed_containers
+    )
+    add_rule_labels(
+        parsed_labels_container_indices, docker_containers, parsed_label_strings
+    )
+
     add_is_authelia_labels(draw, docker_containers, parsed_containers)
     docker_containers, parsed_containers = remove_containers_without_labels(
         docker_containers, parsed_containers
@@ -84,6 +135,54 @@ def containers_and_access_control(
     assign_docker_containers(docker_containers, parsed_containers)
 
     return docker_containers, parsed_containers, default_rule_policy, access_control
+
+
+def get_traefik_router_names(
+    draw: st.DrawFn, sorted_rules: list[rules.SortedRule]
+) -> tuple[list[int], list[list[str]]]:
+    # This method ensures that the traefik router names are unique.
+    # Since we need multiple router names for each sorted rule,
+    # we need to sample them once globally and then distribute them to each rule.
+    n_traefik_router_names_per_rule: list[int] = []
+    n_simple_domain_labels_per_rule: list[int] = []
+    for sorted_rule in sorted_rules:
+        n_domains = len(sorted_rule.domain)
+        # Domains from traefik get appended to the ones from regular DomainLabels.
+        # So, we split the domains into ones from DomainLabel and ones from DomainFromTraefik.
+        n_simple_domain_labels: int = draw(
+            st.integers(min_value=0, max_value=n_domains)
+        )
+        n_simple_domain_labels_per_rule.append(n_simple_domain_labels)
+
+        n_traefik_router_names = n_domains - n_simple_domain_labels
+        n_traefik_router_names_per_rule.append(n_traefik_router_names)
+
+    n_traefik_router_names_total: int = sum(n_traefik_router_names_per_rule)
+    traefik_router_names_total: list[str] = draw(
+        st.lists(
+            shared.traefik_router_name_strategy,
+            min_size=n_traefik_router_names_total,
+            max_size=n_traefik_router_names_total,
+            unique=True,
+        )
+    )
+    traefik_router_names_per_rule: list[list[str]] = []
+    start_index = 0
+    for n_router_names in n_traefik_router_names_per_rule:
+        end_index = start_index + n_router_names
+        router_names: list[str] = traefik_router_names_total[start_index:end_index]
+        traefik_router_names_per_rule.append(router_names)
+        start_index += n_router_names
+
+    assert (
+        sum(len(router_names) for router_names in traefik_router_names_per_rule)
+        == n_traefik_router_names_total
+    )
+    assert [
+        len(router_names) for router_names in traefik_router_names_per_rule
+    ] == n_traefik_router_names_per_rule
+
+    return n_simple_domain_labels_per_rule, traefik_router_names_per_rule
 
 
 def create_order_indices(
@@ -105,29 +204,110 @@ def create_order_indices(
 
 def add_domain_label(
     draw: st.DrawFn,
-    labels: list[dl2ac_labels.RuleLabel],
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel],
     label_strings: list[tuple[str, str]],
     sorted_rule: rules.SortedRule,
+    n_simple_domain_labels: int,
+    traefik_router_names: list[str],
+    parsed_labels: list[dl2ac_labels.ParsedLabel],
+    parsed_label_strings: list[tuple[str, str]],
 ) -> None:
-    n_domains = len(sorted_rule.domain)
+    add_simple_domain_label(
+        draw,
+        raw_rule_labels,
+        label_strings,
+        sorted_rule.name,
+        sorted_rule.domain[:n_simple_domain_labels],
+    )
+    add_domain_from_traefik_label(
+        draw,
+        raw_rule_labels,
+        label_strings,
+        sorted_rule.name,
+        sorted_rule.domain[n_simple_domain_labels:],
+        traefik_router_names,
+        parsed_labels,
+        parsed_label_strings,
+    )
+
+
+def add_simple_domain_label(
+    draw: st.DrawFn,
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel],
+    label_strings: list[tuple[str, str]],
+    sorted_rule_name: str,
+    domains: list[str],
+) -> None:
+    n_domains = len(domains)
     domain_indices = create_order_indices(draw, shared.index_strategy, n_domains)
-    for index, domain in zip(domain_indices, sorted_rule.domain):
+    for index, domain in zip(domain_indices, domains):
         domain_label = dl2ac_labels.DomainLabel(
-            rule_name=sorted_rule.name, index=index, domain=domain
+            rule_name=sorted_rule_name, index=index, domain=domain
         )
-        labels.append(domain_label)
+        raw_rule_labels.append(domain_label)
 
         domain_label_string_key = config.DOMAIN_KEY_FORMAT.format(
-            rule_name=sorted_rule.name,
+            rule_name=sorted_rule_name,
             index=index,
         )
         domain_label_string_value = domain
         label_strings.append((domain_label_string_key, domain_label_string_value))
 
 
+def add_domain_from_traefik_label(
+    draw: st.DrawFn,
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel],
+    label_strings: list[tuple[str, str]],
+    sorted_rule_name: str,
+    domains: list[str],
+    traefik_router_names: list[str],
+    parsed_labels: list[dl2ac_labels.ParsedLabel],
+    parsed_label_strings: list[tuple[str, str]],
+) -> None:
+    n_domains = len(domains)
+    n_router_names = len(traefik_router_names)
+    assert n_domains == n_router_names
+    domain_indices = create_order_indices(draw, shared.index_strategy, n_domains)
+    for index, domain, traefik_router_name in zip(
+        domain_indices, domains, traefik_router_names
+    ):
+        traefik_router_label = dl2ac_labels.TraefikRouterLabel(
+            traefik_router_name=traefik_router_name, domain=domain
+        )
+        parsed_labels.append(traefik_router_label)
+
+        domain_add_traefik_label = dl2ac_labels.DomainAddTraefikLabel(
+            rule_name=sorted_rule_name,
+            index=index,
+            traefik_router_name=traefik_router_name,
+        )
+        raw_rule_labels.append(domain_add_traefik_label)
+
+        traefik_router_label_string_key = config.TRAEFIK_ROUTER_KEY_FORMAT.format(
+            router_name=traefik_router_name,
+        )
+        traefik_router_label_string_value = config.TRAEFIK_ROUTER_VALUE_FORMAT.format(
+            domain=domain,
+        )
+        parsed_label_strings.append(
+            (traefik_router_label_string_key, traefik_router_label_string_value)
+        )
+
+        domain_add_traefik_label_string_key = (
+            config.DOMAIN_ADD_TRAEFIK_KEY_FORMAT.format(
+                rule_name=sorted_rule_name,
+                index=index,
+            )
+        )
+        domain_add_traefik_label_string_value = traefik_router_name
+        label_strings.append(
+            (domain_add_traefik_label_string_key, domain_add_traefik_label_string_value)
+        )
+
+
 def add_domain_regex_label(
     draw: st.DrawFn,
-    labels: list[dl2ac_labels.RuleLabel],
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel],
     label_strings: list[tuple[str, str]],
     sorted_rule: rules.SortedRule,
 ) -> None:
@@ -139,7 +319,7 @@ def add_domain_regex_label(
         domain_regex_label = dl2ac_labels.DomainRegexLabel(
             rule_name=sorted_rule.name, index=index, domain_regex=domain_regex
         )
-        labels.append(domain_regex_label)
+        raw_rule_labels.append(domain_regex_label)
 
         domain_regex_label_string_key = config.DOMAIN_REGEX_KEY_FORMAT.format(
             rule_name=sorted_rule.name,
@@ -153,7 +333,7 @@ def add_domain_regex_label(
 
 def add_methods_label(
     draw: st.DrawFn,
-    labels: list[dl2ac_labels.RuleLabel],
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel],
     label_strings: list[tuple[str, str]],
     sorted_rule: rules.SortedRule,
 ) -> None:
@@ -163,7 +343,7 @@ def add_methods_label(
         method_label = dl2ac_labels.MethodsLabel(
             rule_name=sorted_rule.name, index=index, method=method
         )
-        labels.append(method_label)
+        raw_rule_labels.append(method_label)
 
         method_label_string_key = config.METHODS_KEY_FORMAT.format(
             rule_name=sorted_rule.name,
@@ -175,7 +355,7 @@ def add_methods_label(
 
 def add_policy_label(
     draw: st.DrawFn,
-    labels: list[dl2ac_labels.RuleLabel],
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel],
     label_strings: list[tuple[str, str]],
     sorted_rule: rules.SortedRule,
     default_rule_policy: config.AutheliaPolicy,
@@ -188,7 +368,7 @@ def add_policy_label(
     policy_label = dl2ac_labels.PolicyLabel(
         rule_name=sorted_rule.name, policy=sorted_rule.policy
     )
-    labels.append(policy_label)
+    raw_rule_labels.append(policy_label)
 
     policy_label_string_key = config.POLICY_KEY_FORMAT.format(
         rule_name=sorted_rule.name
@@ -198,13 +378,13 @@ def add_policy_label(
 
 
 def add_rank_label(
-    labels: list[dl2ac_labels.RuleLabel],
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel],
     label_strings: list[tuple[str, str]],
     sorted_rule: rules.SortedRule,
     rank: int,
 ) -> None:
     rank_label = dl2ac_labels.RankLabel(rule_name=sorted_rule.name, rank=rank)
-    labels.append(rank_label)
+    raw_rule_labels.append(rank_label)
 
     rank_label_string_key = config.RANK_KEY_FORMAT.format(rule_name=sorted_rule.name)
     rank_label_string_value = str(rank)
@@ -213,7 +393,7 @@ def add_rank_label(
 
 def add_resources_label(
     draw: st.DrawFn,
-    labels: list[dl2ac_labels.RuleLabel],
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel],
     label_strings: list[tuple[str, str]],
     sorted_rule: rules.SortedRule,
 ) -> None:
@@ -223,7 +403,7 @@ def add_resources_label(
         resource_label = dl2ac_labels.ResourcesLabel(
             rule_name=sorted_rule.name, index=index, resource=resource
         )
-        labels.append(resource_label)
+        raw_rule_labels.append(resource_label)
 
         resource_label_string_key = config.RESOURCES_KEY_FORMAT.format(
             rule_name=sorted_rule.name,
@@ -235,7 +415,7 @@ def add_resources_label(
 
 def add_subject_label(
     draw: st.DrawFn,
-    labels: list[dl2ac_labels.RuleLabel],
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel],
     label_strings: list[tuple[str, str]],
     sorted_rule: rules.SortedRule,
 ) -> None:
@@ -252,7 +432,7 @@ def add_subject_label(
                 inner_index=1,
                 subject=inner_list,
             )
-            labels.append(subject_label)
+            raw_rule_labels.append(subject_label)
 
             subject_label_string_key = config.SUBJECT_KEY_FORMAT.format(
                 rule_name=sorted_rule.name,
@@ -274,7 +454,7 @@ def add_subject_label(
                 inner_index=inner_index,
                 subject=subject,
             )
-            labels.append(subject_label)
+            raw_rule_labels.append(subject_label)
 
             subject_label_string_key = config.SUBJECT_KEY_FORMAT.format(
                 rule_name=sorted_rule.name,
@@ -285,12 +465,12 @@ def add_subject_label(
             label_strings.append((subject_label_string_key, subject_label_string_value))
 
 
-def distribute_labels(
+def distribute_raw_rule_labels(
     draw: st.DrawFn,
-    labels: list[dl2ac_labels.RuleLabel],
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel],
     parsed_containers: list[containers.ParsedContainer],
 ) -> list[int]:
-    n_labels = len(labels)
+    n_labels = len(raw_rule_labels)
     n_containers = len(parsed_containers)
     container_indices = draw(
         st.lists(
@@ -299,8 +479,28 @@ def distribute_labels(
             max_size=n_labels,
         )
     )
-    for container_index, label in zip(container_indices, labels):
-        parsed_containers[container_index].labels.append(label)
+    for container_index, label in zip(container_indices, raw_rule_labels):
+        parsed_containers[container_index].raw_rule_labels.append(label)
+
+    return container_indices
+
+
+def distribute_parsed_labels(
+    draw: st.DrawFn,
+    parsed_labels: list[dl2ac_labels.ParsedLabel],
+    parsed_containers: list[containers.ParsedContainer],
+) -> list[int]:
+    n_labels = len(parsed_labels)
+    n_containers = len(parsed_containers)
+    container_indices = draw(
+        st.lists(
+            st.integers(min_value=0, max_value=n_containers - 1),
+            min_size=n_labels,
+            max_size=n_labels,
+        )
+    )
+    for container_index, label in zip(container_indices, parsed_labels):
+        parsed_containers[container_index].other_labels.append(label)
 
     return container_indices
 
@@ -359,7 +559,8 @@ def remove_containers_without_labels(
     container_indices_to_remove = {
         index
         for index, parsed_container in enumerate(parsed_containers)
-        if len(parsed_container.labels) == 0
+        if len(parsed_container.raw_rule_labels) == 0
+        and len(parsed_container.other_labels) == 0
     }
 
     docker_containers = [

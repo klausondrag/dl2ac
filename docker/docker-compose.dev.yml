@@ -36,6 +36,7 @@ services:
     image: containous/whoami
     labels:
       dl2ac.rules.one.domain.1: '*.example.com'
+      dl2ac.rules.one.domain_traefik.1: whoami1-router
       # Please note that regular expressions in this label format require
       # Single backslash and use of single quotes
       dl2ac.rules.one.domain_regex.1: '^user-(?P<User>\w+)\.example\.com$'
@@ -51,11 +52,14 @@ services:
       dl2ac.rules.one.subject.2.1: group:admin
       dl2ac.rules.one.subject.2.2: group:app-name
       dl2ac.rules.one.subject.3.1: group:super-admin
+      traefik.http.routers.whoami1-router.middlewares: 'authelia@docker'
+      traefik.http.routers.whoami1-router.rule: 'Host(`whoami1.example.com`)'
 
   whoami2:
     image: containous/whoami
     labels:
       - "dl2ac.rules.two.domain.1=*.example.com"
+      - "dl2ac.rules.two.domain_traefik.1=whoami2-router"
       # Please note that regular expressions in this label format require
       # Double backslash and use of no quotes
       - "dl2ac.rules.two.domain_regex.1=^user-(?P<User>\\w+)\\.example\\.com$"
@@ -72,6 +76,8 @@ services:
       - "dl2ac.rules.two.subject.2.1=group:admin"
       - "dl2ac.rules.two.subject.2.2=group:app-name"
       - "dl2ac.rules.two.subject.3.1=group:super-admin"
+      - "traefik.http.routers.whoami2-router.middlewares=authelia@docker"
+      - "traefik.http.routers.whoami2-router.rule=Host(`whoami2.example.com`)"
 
 networks:
   proxy:

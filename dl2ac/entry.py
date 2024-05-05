@@ -194,11 +194,21 @@ def to_authelia_data(
     default_authelia_policy: config.AutheliaPolicy,
     default_rule_policy: config.AutheliaPolicy,
 ) -> dict:
-    all_labels: list[labels.RuleLabel] = containers.load_rules(parsed_containers)
-    logger.debug(f'{all_labels=}')
+    raw_labels: list[labels.RawRuleLabel] = containers.load_rules(parsed_containers)
+    logger.debug(f'{raw_labels=}')
+
+    other_labels: list[labels.ParsedLabel] = containers.load_other_labels(
+        parsed_containers
+    )
+    logger.debug(f'{other_labels=}')
+
+    resolved_labels: list[labels.ResolvedRuleLabel] = labels.resolve(
+        raw_labels, other_labels
+    )
+    logger.debug(f'{resolved_labels=}')
 
     parsed_rules: list[rules.ParsedRule] = rules.parse_rules(
-        all_labels, default_rule_policy
+        resolved_labels, default_rule_policy
     )
     logger.debug(f'{parsed_rules=}')
 

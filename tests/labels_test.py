@@ -13,6 +13,19 @@ def test_is_authelia_label(expected_label: labels.IsAutheliaLabel) -> None:
     assert actual_label == expected_label
 
 
+@given(shared.traefik_router_label_strategy)
+def test_traefik_router_label(expected_label: labels.TraefikRouterLabel) -> None:
+    actual_label = labels.TraefikRouterLabel.try_parse(
+        label_key=config.TRAEFIK_ROUTER_KEY_FORMAT.format(
+            router_name=expected_label.traefik_router_name,
+        ),
+        label_value=config.TRAEFIK_ROUTER_VALUE_FORMAT.format(
+            domain=expected_label.domain,
+        ),
+    )
+    assert actual_label == expected_label
+
+
 @given(shared.domain_label_strategy)
 def test_domain_label(expected_label: labels.DomainLabel) -> None:
     actual_label = labels.DomainLabel.try_parse(
@@ -21,6 +34,47 @@ def test_domain_label(expected_label: labels.DomainLabel) -> None:
             index=expected_label.index,
         ),
         label_value=expected_label.domain,
+    )
+    assert actual_label == expected_label
+
+
+@given(shared.domain_add_traefik_label_strategy)
+def test_domain_add_traefik_label(expected_label: labels.DomainAddTraefikLabel) -> None:
+    actual_label = labels.DomainAddTraefikLabel.try_parse(
+        label_key=config.DOMAIN_ADD_TRAEFIK_KEY_FORMAT.format(
+            rule_name=expected_label.rule_name,
+            index=expected_label.index,
+        ),
+        label_value=expected_label.traefik_router_name,
+    )
+    assert actual_label == expected_label
+
+
+@given(shared.domain_from_traefik_label_strategy, shared.traefik_router_name_strategy)
+def test_domain_from_traefik_label(
+    expected_label: labels.DomainFromTraefikLabel, traefik_router_name: str
+) -> None:
+    traefik_router_label = labels.TraefikRouterLabel.try_parse(
+        label_key=config.TRAEFIK_ROUTER_KEY_FORMAT.format(
+            router_name=traefik_router_name,
+        ),
+        label_value=config.TRAEFIK_ROUTER_VALUE_FORMAT.format(
+            domain=expected_label.domain,
+        ),
+    )
+    assert traefik_router_label is not None
+
+    domain_add_traefik_label = labels.DomainAddTraefikLabel.try_parse(
+        label_key=config.DOMAIN_ADD_TRAEFIK_KEY_FORMAT.format(
+            rule_name=expected_label.rule_name,
+            index=expected_label.index,
+        ),
+        label_value=traefik_router_name,
+    )
+    assert domain_add_traefik_label is not None
+
+    actual_label: labels.DomainFromTraefikLabel | None = (
+        domain_add_traefik_label.resolve([traefik_router_label])
     )
     assert actual_label == expected_label
 

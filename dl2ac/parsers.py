@@ -2,7 +2,7 @@ import abc
 import dataclasses
 import enum
 import re
-from typing import Generic, TypeVar
+from typing import ClassVar, Generic, TypeVar
 
 from loguru import logger
 
@@ -95,6 +95,20 @@ class RuleStringParser(Parser[bool]):
 
 
 @dataclasses.dataclass
+class RegexParser(Parser[str]):
+    regex: re.Pattern
+    group_name: str
+
+    def from_str(self, value: str) -> str | None:
+        # 'traefik.http.routers.whoami.rule': 'Host(`whoami.example.com`)'
+        if not (match := self.regex.match(value)):
+            return None
+
+        matched_value: str = match.group(self.group_name)
+        return matched_value
+
+
+@dataclasses.dataclass
 class RuleRegexParser(Parser[str]):
     regex: re.Pattern
 
@@ -103,22 +117,22 @@ class RuleRegexParser(Parser[str]):
         if not (match := self.regex.match(value)):
             return None
 
-        rule_name = match.group('rule_name')
+        rule_name: str = match.group('rule_name')
         return rule_name
 
 
 @dataclasses.dataclass
 class RuleWithOneIndexRegexParser(Parser[tuple[str, int]]):
     regex: re.Pattern
-    index_parser = IntParser('index')
+    index_parser: ClassVar[Parser[int]] = IntParser('index')
 
     def from_str(self, value: str) -> tuple[str, int] | None:
         # 'dl2ac.rules.one.methods.1': 'OPTIONS'
         if not (match := self.regex.match(value)):
             return None
 
-        rule_name = match.group('rule_name')
-        index = self.index_parser.from_str(match.group('index'))
+        rule_name: str = match.group('rule_name')
+        index: int | None = self.index_parser.from_str(match.group('index'))
         if index is None:
             return None
 
@@ -128,19 +142,19 @@ class RuleWithOneIndexRegexParser(Parser[tuple[str, int]]):
 @dataclasses.dataclass
 class RuleWithTwoIndicesRegexParser(Parser[tuple[str, int, int]]):
     regex: re.Pattern
-    index_parser = IntParser('index')
+    index_parser: ClassVar[Parser[int]] = IntParser('index')
 
     def from_str(self, value: str) -> tuple[str, int, int] | None:
         # 'dl2ac.rules.one.subjects.1.1': 'user:john'
         if not (match := self.regex.match(value)):
             return None
 
-        rule_name = match.group('rule_name')
-        outer_index = self.index_parser.from_str(match.group('outer_index'))
+        rule_name: str = match.group('rule_name')
+        outer_index: int | None = self.index_parser.from_str(match.group('outer_index'))
         if outer_index is None:
             return None
 
-        inner_index = self.index_parser.from_str(match.group('inner_index'))
+        inner_index: int | None = self.index_parser.from_str(match.group('inner_index'))
         if inner_index is None:
             return None
 

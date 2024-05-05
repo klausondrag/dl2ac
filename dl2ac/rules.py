@@ -27,6 +27,7 @@ def _get_duplicates(values: list[Any]) -> list:
 @dataclasses.dataclass
 class RawRule:
     domain: list[tuple[int, str]] = dataclasses.field(default_factory=list)
+    domain_from_traefik: list[tuple[int, str]] = dataclasses.field(default_factory=list)
     domain_regex: list[tuple[int, str]] = dataclasses.field(default_factory=list)
     methods: list[tuple[int, labels.AutheliaMethod]] = dataclasses.field(
         default_factory=list
@@ -36,11 +37,13 @@ class RawRule:
     resources: list[tuple[int, str]] = dataclasses.field(default_factory=list)
     subject: list[tuple[int, int, str]] = dataclasses.field(default_factory=list)
 
-    def add(self, label: labels.RuleLabel):
+    def add(self, label: labels.ResolvedRuleLabel):
         data = label.to_data()
         match type(label):
             case labels.DomainLabel:
                 self.domain.append(data)
+            case labels.DomainFromTraefikLabel:
+                self.domain_from_traefik.append(data)
             case labels.DomainRegexLabel:
                 self.domain_regex.append(data)
             case labels.MethodsLabel:
@@ -89,6 +92,11 @@ class ParsedRule:
                 (cls._validate_no_duplicate_first_index, raw_rule.domain, 'domain'),
                 (
                     cls._validate_no_duplicate_first_index,
+                    raw_rule.domain_from_traefik,
+                    'domain.from_traefik',
+                ),
+                (
+                    cls._validate_no_duplicate_first_index,
                     raw_rule.domain_regex,
                     'domain_regex',
                 ),
@@ -115,6 +123,14 @@ class ParsedRule:
 
         # Sort domain by index (first value of tuple)
         domain = [domain for _, domain in sorted(raw_rule.domain)]
+
+        # Sort domain by index (first value of tuple)
+        domain_from_traefik = [
+            domain for _, domain in sorted(raw_rule.domain_from_traefik)
+        ]
+
+        # Merge domain and domain_from_traefik
+        domain.extend(domain_from_traefik)
 
         # Sort domain_regex by index (first value of tuple)
         domain_regex = [
@@ -250,7 +266,7 @@ class AccessControl:
 
 
 def parse_rules(
-    label_list: list[labels.RuleLabel],
+    label_list: list[labels.ResolvedRuleLabel],
     default_rule_policy: config.AutheliaPolicy,
 ) -> list[ParsedRule]:
     raw_rules: dict[str, RawRule] = collections.defaultdict(RawRule)

@@ -22,6 +22,12 @@ LABEL_RULES_START_FORMAT = f'{LABEL_START}.rules.{{rule_name}}'
 DOMAIN_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.domain\.(?P<index>.+)')
 DOMAIN_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.domain.{{index}}'
 
+# 'dl2ac.rules.one.domains.add_traefik.1': 'whoami'
+DOMAIN_ADD_TRAEFIK_KEY_REGEX = re.compile(
+    rf'{LABEL_RULES_START_REGEX}\.domain_traefik\.(?P<index>.+)'
+)
+DOMAIN_ADD_TRAEFIK_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.domain_traefik.{{index}}'
+
 # 'dl2ac.rules.one.domain_regex.1': '^user-(?P<User>\w+)\.example\.com$'
 DOMAIN_REGEX_KEY_REGEX = re.compile(
     rf'{LABEL_RULES_START_REGEX}\.domain_regex\.(?P<index>.+)'
@@ -53,6 +59,14 @@ SUBJECT_KEY_REGEX = re.compile(
 SUBJECT_KEY_FORMAT = (
     f'{LABEL_RULES_START_FORMAT}.subject.{{outer_index}}.{{inner_index}}'
 )
+
+# 'traefik.http.routers.whoami.rule': 'Host(`whoami.example.com`)'
+TRAEFIK_ROUTER_KEY_REGEX = re.compile(
+    r'traefik\.http\.routers\.(?P<router_name>.+)\.rule'
+)
+TRAEFIK_ROUTER_KEY_FORMAT = 'traefik.http.routers.{router_name}.rule'
+TRAEFIK_ROUTER_VALUE_REGEX = re.compile(r'Host\(`(?P<domain>.+)`\)')
+TRAEFIK_ROUTER_VALUE_FORMAT = 'Host(`{domain}`)'
 
 UPDATE_YAML_KEY = 'access_control'
 
