@@ -37,6 +37,10 @@ class ParsedLabel(abc.ABC):
     def try_parse(cls, label_key: str, label_value: str) -> Self | None:
         pass
 
+    @abc.abstractmethod
+    def to_parsable_strings(self) -> tuple[str, str]:
+        pass
+
 
 @dataclasses.dataclass
 class IsAutheliaLabel(ParsedLabel):
@@ -71,6 +75,11 @@ class IsAutheliaLabel(ParsedLabel):
         is_authelia = label_value_data
         return cls(is_authelia=is_authelia)
 
+    def to_parsable_strings(self) -> tuple[str, str]:
+        label_key = config.IS_AUTHELIA_KEY
+        label_value = str(self.is_authelia)
+        return label_key, label_value
+
 
 @dataclasses.dataclass
 class TraefikRouterLabel(ParsedLabel):
@@ -101,6 +110,15 @@ class TraefikRouterLabel(ParsedLabel):
             traefik_router_name=router_name,
             domain=domain,
         )
+
+    def to_parsable_strings(self) -> tuple[str, str]:
+        label_key = config.TRAEFIK_ROUTER_KEY_FORMAT.format(
+            router_name=self.traefik_router_name,
+        )
+        label_value = config.TRAEFIK_ROUTER_VALUE_FORMAT.format(
+            domain=self.domain,
+        )
+        return label_key, label_value
 
 
 LabelDataType = TypeVar('LabelDataType')
@@ -154,6 +172,14 @@ class DomainLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, str]]):
         domain = label_value_data
         return cls(rule_name=rule_name, index=index, domain=domain)
 
+    def to_parsable_strings(self) -> tuple[str, str]:
+        label_key = config.DOMAIN_KEY_FORMAT.format(
+            rule_name=self.rule_name,
+            index=self.index,
+        )
+        label_value = self.domain
+        return label_key, label_value
+
     def resolve(self, other_labels: list[ParsedLabel]) -> Self | None:
         return self
 
@@ -198,6 +224,14 @@ class DomainAddTraefikLabel(RawRuleLabel):
         return cls(
             rule_name=rule_name, index=index, traefik_router_name=traefik_router_name
         )
+
+    def to_parsable_strings(self) -> tuple[str, str]:
+        label_key = config.DOMAIN_ADD_TRAEFIK_KEY_FORMAT.format(
+            rule_name=self.rule_name,
+            index=self.index,
+        )
+        label_value = self.traefik_router_name
+        return label_key, label_value
 
     def resolve(self, other_labels: list[ParsedLabel]) -> DomainFromTraefikLabel | None:
         # This method is used to convert
@@ -253,6 +287,14 @@ class DomainRegexLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, str]]):
         domain_regex = label_value_data
         return cls(rule_name=rule_name, index=index, domain_regex=domain_regex)
 
+    def to_parsable_strings(self) -> tuple[str, str]:
+        label_key = config.DOMAIN_REGEX_KEY_FORMAT.format(
+            rule_name=self.rule_name,
+            index=self.index,
+        )
+        label_value = self.domain_regex
+        return label_key, label_value
+
     def resolve(self, other_labels: list[ParsedLabel]) -> Self | None:
         return self
 
@@ -294,6 +336,14 @@ class MethodsLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, AutheliaMethod]]):
         method = label_value_data
         return cls(rule_name=rule_name, index=index, method=method)
 
+    def to_parsable_strings(self) -> tuple[str, str]:
+        label_key = config.METHODS_KEY_FORMAT.format(
+            rule_name=self.rule_name,
+            index=self.index,
+        )
+        label_value = self.method.value
+        return label_key, label_value
+
     def resolve(self, other_labels: list[ParsedLabel]) -> Self | None:
         return self
 
@@ -334,6 +384,11 @@ class PolicyLabel(RawRuleLabel, ResolvedRuleLabel[config.AutheliaPolicy]):
         policy = label_value_data
         return cls(rule_name=rule_name, policy=policy)
 
+    def to_parsable_strings(self) -> tuple[str, str]:
+        label_key = config.POLICY_KEY_FORMAT.format(rule_name=self.rule_name)
+        label_value = self.policy.value
+        return label_key, label_value
+
     def resolve(self, other_labels: list[ParsedLabel]) -> Self | None:
         return self
 
@@ -366,6 +421,13 @@ class RankLabel(RawRuleLabel, ResolvedRuleLabel[int]):
         rule_name = label_key_data
         rank = label_value_data
         return cls(rule_name=rule_name, rank=rank)
+
+    def to_parsable_strings(self) -> tuple[str, str]:
+        label_key = config.RANK_KEY_FORMAT.format(
+            rule_name=self.rule_name,
+        )
+        label_value = str(self.rank)
+        return label_key, label_value
 
     def resolve(self, other_labels: list[ParsedLabel]) -> Self | None:
         return self
@@ -400,6 +462,14 @@ class ResourcesLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, str]]):
         rule_name, index = label_key_data
         resource = label_value_data
         return cls(rule_name=rule_name, index=index, resource=resource)
+
+    def to_parsable_strings(self) -> tuple[str, str]:
+        label_key = config.RESOURCES_KEY_FORMAT.format(
+            rule_name=self.rule_name,
+            index=self.index,
+        )
+        label_value = str(self.resource)
+        return label_key, label_value
 
     def resolve(self, other_labels: list[ParsedLabel]) -> Self | None:
         return self
@@ -443,6 +513,15 @@ class SubjectLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, int, str]]):
             subject=subject,
         )
 
+    def to_parsable_strings(self) -> tuple[str, str]:
+        label_key = config.SUBJECT_KEY_FORMAT.format(
+            rule_name=self.rule_name,
+            outer_index=self.outer_index,
+            inner_index=self.inner_index,
+        )
+        label_value = str(self.subject)
+        return label_key, label_value
+
     def resolve(self, other_labels: list[ParsedLabel]) -> Self | None:
         return self
 
@@ -450,7 +529,7 @@ class SubjectLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, int, str]]):
         return self.outer_index, self.inner_index, self.subject
 
 
-supported_label_types: list[type[ParsedLabel]] = [
+supported_parsable_label_types: list[type[ParsedLabel]] = [
     IsAutheliaLabel,
     DomainLabel,
     DomainAddTraefikLabel,

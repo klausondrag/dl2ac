@@ -95,6 +95,19 @@ subject_label_strategy = st.builds(
     subject=subject_strategy,
 )
 
+parsable_label_strategy = st.one_of(
+    is_authelia_label_strategy,
+    traefik_router_label_strategy,
+    domain_label_strategy,
+    domain_add_traefik_label_strategy,
+    domain_regex_label_strategy,
+    methods_label_strategy,
+    policy_label_strategy,
+    rank_label_strategy,
+    resources_label_strategy,
+    subject_label_strategy,
+)
+
 sleep_at_start_n_seconds = '1'
 
 
