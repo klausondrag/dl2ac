@@ -48,7 +48,7 @@ class EnumParser(Parser[EnumType]):
 
     def from_str(self, value: str) -> EnumType | None:
         try:
-            return self.enum_type[value.upper()]
+            return self.enum_type[value.upper().replace(' ', '_')]
         except KeyError:
             # TODO: add container id, container name, and label_key
             logger.warning(

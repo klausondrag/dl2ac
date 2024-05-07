@@ -33,6 +33,9 @@ class RawRule:
         default_factory=list
     )
     policy: list[config.AutheliaPolicy] = dataclasses.field(default_factory=list)
+    query: list[tuple[int, int, labels.QueryObject]] = dataclasses.field(
+        default_factory=list
+    )
     rank: list[int] = dataclasses.field(default_factory=list)
     resources: list[tuple[int, str]] = dataclasses.field(default_factory=list)
     subject: list[tuple[int, int, str]] = dataclasses.field(default_factory=list)
@@ -50,6 +53,8 @@ class RawRule:
                 self.methods.append(data)
             case labels.PolicyLabel:
                 self.policy.append(data)
+            case labels.QueryLabel:
+                self.query.append(data)
             case labels.RankLabel:
                 self.rank.append(data)
             case labels.ResourcesLabel:
@@ -71,6 +76,7 @@ class ParsedRule:
     methods: list[labels.AutheliaMethod]
     rank: int
     policy: config.AutheliaPolicy
+    query: list[labels.QueryObject | list[labels.QueryObject]]
     resources: list[str]
     subject: list[str | list[str]]
 
@@ -107,8 +113,13 @@ class ParsedRule:
                     raw_rule.domain_regex,
                     'domain_regex',
                 ),
-                (cls._validate_no_duplicate_first_index, raw_rule.methods, 'methods'),
                 (cls._validate_at_most_one, raw_rule.policy, 'policy'),
+                (cls._validate_no_duplicate_first_index, raw_rule.methods, 'methods'),
+                (
+                    cls._validate_no_duplicate_first_second_indices,
+                    raw_rule.query,
+                    'query',
+                ),
                 (cls._validate_exactly_one, raw_rule.rank, 'rank'),
                 (
                     cls._validate_no_duplicate_first_index,
@@ -168,6 +179,25 @@ class ParsedRule:
             raw_rule.policy[0] if len(raw_rule.policy) == 1 else default_rule_policy
         )
 
+        ordered_query_dict: collections.defaultdict[
+            int, collections.defaultdict[int, labels.QueryObject]
+        ] = collections.defaultdict(lambda: collections.defaultdict())
+        for outer_index, inner_index, query in raw_rule.query:
+            ordered_query_dict[outer_index][inner_index] = query
+
+        ordered_query_list: list[list[labels.QueryObject]] = [
+            [
+                ordered_query_dict[outer_index][inner_index]
+                for inner_index in sorted(ordered_query_dict[outer_index].keys())
+            ]
+            for outer_index in sorted(ordered_query_dict.keys())
+        ]
+
+        simplified_query_list: list[labels.QueryObject | list[labels.QueryObject]] = [
+            outer_query_list[0] if len(outer_query_list) == 1 else outer_query_list
+            for outer_query_list in ordered_query_list
+        ]
+
         # We have ensured that exactly one value exists,
         # so we can safely access it with [0].
         rank = raw_rule.rank[0]
@@ -202,6 +232,7 @@ class ParsedRule:
             domain_regex=domain_regex,
             methods=methods,
             policy=policy,
+            query=simplified_query_list,
             rank=rank,
             resources=resources,
             subject=simplified_subject_list,
@@ -272,6 +303,25 @@ class ParsedRule:
         return True
 
     @staticmethod
+    def _validate_no_duplicate_triplet(
+        values: list[tuple[int, int, Any]], rule_name: str, field_name: str
+    ) -> bool:
+        indices = [
+            (outer_index, inner_index) for outer_index, inner_index, *args in values
+        ]
+        duplicates = _get_duplicates(indices)
+
+        if len(duplicates) > 0:
+            logger.warning(
+                f'Rule `{rule_name}`: Found duplicate indices for field `{field_name}`.'
+                + f' {duplicates=}'
+                + ' Only exactly one is allowed. Please remove others.'
+            )
+            return False
+
+        return True
+
+    @staticmethod
     def _validate_at_least_one_domain(
         rule_name: str,
         domain: list[tuple[int, str]],
@@ -296,6 +346,7 @@ class SortedRule:
     domain_regex: list[str]
     methods: list[labels.AutheliaMethod]
     policy: config.AutheliaPolicy
+    query: list[labels.QueryObject | list[labels.QueryObject]]
     resources: list[str]
     subject: list[str | list[str]]
 
@@ -346,6 +397,7 @@ def sort_rules(parsed_rules: list[ParsedRule]) -> list[SortedRule]:
             domain_regex=parsed_rule.domain_regex,
             methods=parsed_rule.methods,
             policy=parsed_rule.policy,
+            query=parsed_rule.query,
             resources=parsed_rule.resources,
             subject=parsed_rule.subject,
         )
@@ -421,7 +473,9 @@ def enum_as_value_factory(data: list[tuple[str, Any]]) -> dict[str, Any]:
 
         return obj
 
-    return dict((k, convert_value(v)) for k, v in data)
+    # Added `if value is not None` to omit keys
+    # where the value is None from the final dict
+    return dict((key, convert_value(value)) for key, value in data if value is not None)
 
 
 class StringYaml(YAML):

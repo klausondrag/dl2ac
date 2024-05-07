@@ -13,6 +13,14 @@ rules:
   policy: one_factor
   resources:
   - ^/api([/?].*)?$
+  query:
+  - key: token
+    operator: not pattern
+  - - key: secure
+    - key: insecure
+      operator: absent
+  - key: random
+    value: '123'
   subject:
   - user:john
   - - group:admin
@@ -31,6 +39,14 @@ rules:
   policy: one_factor
   resources:
   - ^/api([/?].*)?$
+  query:
+  - key: token
+    operator: not pattern
+  - - key: secure
+    - key: insecure
+      operator: absent
+  - key: random
+    value: '123'
   subject:
   - user:john
   - - group:admin

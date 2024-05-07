@@ -27,6 +27,12 @@ sorted_rule_strategy = st.one_of(
         domain_regex=st.lists(shared.domain_regex_strategy),
         methods=st.lists(shared.methods_strategy),
         policy=shared.policy_strategy,
+        query=st.lists(
+            st.one_of(
+                shared.query_object_strategy(),
+                st.lists(shared.query_object_strategy(), min_size=2),
+            )
+        ),
         resources=st.lists(shared.resources_strategy),
         subject=st.lists(
             st.one_of(
@@ -41,6 +47,12 @@ sorted_rule_strategy = st.one_of(
         domain_regex=st.lists(shared.domain_regex_strategy, min_size=1),
         methods=st.lists(shared.methods_strategy),
         policy=shared.policy_strategy,
+        query=st.lists(
+            st.one_of(
+                shared.query_object_strategy(),
+                st.lists(shared.query_object_strategy(), min_size=2),
+            )
+        ),
         resources=st.lists(shared.resources_strategy),
         subject=st.lists(
             st.one_of(
@@ -123,6 +135,7 @@ def containers_and_access_control(
             sorted_rule,
             default_rule_policy,
         )
+        add_query_label(draw, raw_rule_labels, raw_rule_label_strings, sorted_rule)
         add_rank_label(raw_rule_labels, raw_rule_label_strings, sorted_rule, rank)
         add_resources_label(draw, raw_rule_labels, raw_rule_label_strings, sorted_rule)
         add_subject_label(draw, raw_rule_labels, raw_rule_label_strings, sorted_rule)
@@ -393,6 +406,85 @@ def add_policy_label(
     )
     policy_label_string_value = sorted_rule.policy.value
     label_strings.append((policy_label_string_key, policy_label_string_value))
+
+
+def add_query_label(
+    draw: st.DrawFn,
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel],
+    label_strings: list[tuple[str, str]],
+    sorted_rule: rules.SortedRule,
+) -> None:
+    n_outer_queries = len(sorted_rule.query)
+    query_outer_indices = create_order_indices(
+        draw, shared.index_strategy, n_outer_queries
+    )
+    for outer_index, inner_list in zip(query_outer_indices, sorted_rule.query):
+        if isinstance(inner_list, dl2ac_labels.QueryObject):
+            # Add directly
+            query_key_label = dl2ac_labels.QueryKeyLabel(
+                rule_name=sorted_rule.name,
+                outer_index=outer_index,
+                inner_index=1,
+                key=inner_list.key,
+            )
+            raw_rule_labels.append(query_key_label)
+            label_strings.append(query_key_label.to_parsable_strings())
+
+            if inner_list.operator is not None:
+                query_operator_label = dl2ac_labels.QueryOperatorLabel(
+                    rule_name=sorted_rule.name,
+                    outer_index=outer_index,
+                    inner_index=1,
+                    operator=inner_list.operator,
+                )
+                raw_rule_labels.append(query_operator_label)
+                label_strings.append(query_operator_label.to_parsable_strings())
+
+            if inner_list.value is not None:
+                query_value_label = dl2ac_labels.QueryValueLabel(
+                    rule_name=sorted_rule.name,
+                    outer_index=outer_index,
+                    inner_index=1,
+                    value=inner_list.value,
+                )
+                raw_rule_labels.append(query_value_label)
+                label_strings.append(query_value_label.to_parsable_strings())
+
+            continue
+
+        n_inner_queries = len(inner_list)
+        query_inner_indices = create_order_indices(
+            draw, shared.index_strategy, n_inner_queries
+        )
+        for inner_index, query in zip(query_inner_indices, inner_list):
+            query_key_label = dl2ac_labels.QueryKeyLabel(
+                rule_name=sorted_rule.name,
+                outer_index=outer_index,
+                inner_index=inner_index,
+                key=query.key,
+            )
+            raw_rule_labels.append(query_key_label)
+            label_strings.append(query_key_label.to_parsable_strings())
+
+            if query.operator is not None:
+                query_operator_label = dl2ac_labels.QueryOperatorLabel(
+                    rule_name=sorted_rule.name,
+                    outer_index=outer_index,
+                    inner_index=inner_index,
+                    operator=query.operator,
+                )
+                raw_rule_labels.append(query_operator_label)
+                label_strings.append(query_operator_label.to_parsable_strings())
+
+            if query.value is not None:
+                query_value_label = dl2ac_labels.QueryValueLabel(
+                    rule_name=sorted_rule.name,
+                    outer_index=outer_index,
+                    inner_index=inner_index,
+                    value=query.value,
+                )
+                raw_rule_labels.append(query_value_label)
+                label_strings.append(query_value_label.to_parsable_strings())
 
 
 def add_rank_label(

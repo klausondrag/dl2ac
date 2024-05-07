@@ -20,7 +20,43 @@ methods_strategy = st.sampled_from(labels.AutheliaMethod)
 policy_strategy = st.sampled_from(config.AutheliaPolicy)
 rank_strategy = st.integers()
 resources_strategy = domain_strategy
+query_key_strategy = domain_strategy
+query_operator_strategy = st.sampled_from(labels.AutheliaOperator)
+query_value_strategy = domain_strategy
 subject_strategy = resources_strategy
+
+
+@st.composite
+def query_object_strategy(
+    draw: st.DrawFn,
+) -> labels.QueryObject:
+    # For omitting rules, see https://www.authelia.com/configuration/security/access-control/#query
+    # key: required
+    # value: This is required unless the operator is absent or present
+    # operator: If key and value are specified this defaults to equal,
+    # otherwise if key is specified it defaults to present.
+
+    key = draw(query_key_strategy)
+    operator = draw(query_operator_strategy)
+    value = None
+    if operator == labels.AutheliaOperator.ABSENT:
+        value = None
+    elif operator == labels.AutheliaOperator.PRESENT:
+        value = None
+        if draw(st.booleans()):
+            operator = None
+    elif operator == labels.AutheliaOperator.EQUAL:
+        value = draw(query_value_strategy)
+        if draw(st.booleans()):
+            operator = None
+
+    query_object = labels.QueryObject(
+        key=key,
+        operator=operator,
+        value=value,
+    )
+    return query_object
+
 
 is_authelia_label_strategy = st.builds(
     labels.IsAutheliaLabel,
@@ -72,6 +108,38 @@ policy_label_strategy = st.builds(
     labels.PolicyLabel,
     rule_name=rule_name_strategy,
     policy=policy_strategy,
+)
+
+query_label_strategy = st.builds(
+    labels.QueryLabel,
+    rule_name=rule_name_strategy,
+    outer_index=index_strategy,
+    inner_index=index_strategy,
+    query=query_object_strategy(),
+)
+
+query_key_label_strategy = st.builds(
+    labels.QueryKeyLabel,
+    rule_name=rule_name_strategy,
+    outer_index=index_strategy,
+    inner_index=index_strategy,
+    key=query_key_strategy,
+)
+
+query_operator_label_strategy = st.builds(
+    labels.QueryOperatorLabel,
+    rule_name=rule_name_strategy,
+    outer_index=index_strategy,
+    inner_index=index_strategy,
+    operator=query_operator_strategy,
+)
+
+query_value_label_strategy = st.builds(
+    labels.QueryKeyLabel,
+    rule_name=rule_name_strategy,
+    outer_index=index_strategy,
+    inner_index=index_strategy,
+    value=query_value_strategy,
 )
 
 rank_label_strategy = st.builds(

@@ -44,6 +44,16 @@ services:
       dl2ac.rules.one.methods.1: GET
       dl2ac.rules.one.methods.2: POST
       dl2ac.rules.one.policy: one_factor
+      dl2ac.rules.one.query.1.1.key: token
+      dl2ac.rules.one.query.1.1.operator: not pattern
+      # Please note that regular expressions in this label format require
+      # Single backslash and use of single quotes
+      dl2ac.rules.one.query.1.1.value: '^(abc123|zyx789)$'
+      dl2ac.rules.one.query.2.1.key: secure
+      dl2ac.rules.one.query.2.2.key: insecure
+      dl2ac.rules.one.query.2.2.operator: absent
+      dl2ac.rules.one.query.3.1.key: random
+      dl2ac.rules.one.query.3.1.value: 123
       dl2ac.rules.one.rank: 10
       # Please note that regular expressions in this label format require
       # Single backslash and use of single quotes
@@ -68,6 +78,16 @@ services:
       - "dl2ac.rules.two.methods.2=POST"
       - "dl2ac.rules.two.methods.2=POST"
       - "dl2ac.rules.two.policy=one_factor"
+      - "dl2ac.rules.two.query.1.1.key=token"
+      - "dl2ac.rules.two.query.1.1.operator=not pattern"
+      # Please note that regular expressions in this label format require
+      # Double backslash and use of no quotes
+      - "dl2ac.rules.two.query.1.1.value=^(abc123|zyx789)$"
+      - "dl2ac.rules.two.query.2.1.key=secure"
+      - "dl2ac.rules.two.query.2.2.key=insecure"
+      - "dl2ac.rules.two.query.2.2.operator=absent"
+      - "dl2ac.rules.two.query.3.1.key=random"
+      - "dl2ac.rules.two.query.3.1.value=123"
       - "dl2ac.rules.two.rank=20"
       # Please note that regular expressions in this label format require
       # Double backslash and use of no quotes

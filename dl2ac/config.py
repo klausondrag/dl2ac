@@ -42,6 +42,30 @@ METHODS_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.methods.{{index}}'
 POLICY_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.policy')
 POLICY_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.policy'
 
+# 'dl2ac.rules.one.query.1.1.key': 'random'
+QUERY_KEY_KEY_REGEX = re.compile(
+    rf'{LABEL_RULES_START_REGEX}\.query\.(?P<outer_index>.+)\.(?P<inner_index>.+)\.key'
+)
+QUERY_KEY_KEY_FORMAT = (
+    f'{LABEL_RULES_START_FORMAT}.query.{{outer_index}}.{{inner_index}}.key'
+)
+
+# 'dl2ac.rules.one.query.1.1.operator': 'not pattern'
+QUERY_OPERATOR_KEY_REGEX = re.compile(
+    rf'{LABEL_RULES_START_REGEX}\.query\.(?P<outer_index>.+)\.(?P<inner_index>.+)\.operator'
+)
+QUERY_OPERATOR_KEY_FORMAT = (
+    f'{LABEL_RULES_START_FORMAT}.query.{{outer_index}}.{{inner_index}}.operator'
+)
+
+# 'dl2ac.rules.one.query.1.1.value': '^(1|2)$'
+QUERY_VALUE_KEY_REGEX = re.compile(
+    rf'{LABEL_RULES_START_REGEX}\.query\.(?P<outer_index>.+)\.(?P<inner_index>.+)\.value'
+)
+QUERY_VALUE_KEY_FORMAT = (
+    f'{LABEL_RULES_START_FORMAT}.query.{{outer_index}}.{{inner_index}}.value'
+)
+
 # 'dl2ac.rules.one.rank': '20'
 RANK_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.rank')
 RANK_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.rank'
