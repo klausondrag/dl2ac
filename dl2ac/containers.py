@@ -41,8 +41,7 @@ class ParsedContainer:
         other_labels = [
             label
             for label in all_labels
-            if isinstance(label, dl2ac_labels.ParsedLabel)
-            and not isinstance(label, dl2ac_labels.RawRuleLabel)
+            if not isinstance(label, dl2ac_labels.RawRuleLabel)
             and not isinstance(label, dl2ac_labels.IsAutheliaLabel)
         ]
         return cls(

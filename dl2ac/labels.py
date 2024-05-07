@@ -2,7 +2,7 @@ import abc
 import dataclasses
 import enum
 import inspect
-from typing import ClassVar, Generic, Self, TypeVar
+from typing import Any, ClassVar, Generic, Self, TypeVar
 
 from loguru import logger
 
@@ -48,7 +48,7 @@ logger.debug(f'Allowed Authelia Operator Values: {allowed_authelia_operator_valu
 class ParsedLabel(abc.ABC):
     registered_parsable_label_types: ClassVar[list[type[Self]]] = []
 
-    def __init_subclass__(cls, **kwargs) -> None:
+    def __init_subclass__(cls, **kwargs: dict[str, Any]) -> None:
         super().__init_subclass__(**kwargs)
         # Automatically add every subclass that is not abstract to the list of supported types.
         # When parsing labels, every registered type will be tried out (try_parse).
@@ -162,8 +162,8 @@ class RawRuleLabel(ParsedLabel, abc.ABC):
 
     @abc.abstractmethod
     def resolve(
-        self, raw_rule_labels: list[Self], other_labels: list[ParsedLabel]
-    ) -> 'ResolvedRuleLabel | None':
+        self, raw_rule_labels: list['RawRuleLabel'], other_labels: list[ParsedLabel]
+    ) -> 'ResolvedRuleLabel[Any] | None':
         # This method is used to convert
         # DomainAddTraefikLabel and TraefikRouterLabel to a DomainFromTraefikLabel
         # And QueryKeyLabel, QueryOperatorLabel, and QueryValueLabel to a QueryLabel
@@ -207,8 +207,8 @@ class DomainLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, str]]):
         return label_key, label_value
 
     def resolve(
-        self, raw_rule_labels: list[Self], other_labels: list[ParsedLabel]
-    ) -> Self | None:
+        self, raw_rule_labels: list[RawRuleLabel], other_labels: list[ParsedLabel]
+    ) -> ResolvedRuleLabel[Any] | None:
         return self
 
     def to_data(self) -> tuple[int, str]:
@@ -262,7 +262,7 @@ class DomainAddTraefikLabel(RawRuleLabel):
         return label_key, label_value
 
     def resolve(
-        self, raw_rule_labels: list[Self], other_labels: list[ParsedLabel]
+        self, raw_rule_labels: list[RawRuleLabel], other_labels: list[ParsedLabel]
     ) -> DomainFromTraefikLabel | None:
         # Converts DomainAddTraefikLabel and TraefikRouterLabel to a DomainFromTraefikLabel
         domains = [
@@ -345,8 +345,8 @@ class DomainRegexLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, str]]):
         return label_key, label_value
 
     def resolve(
-        self, raw_rule_labels: list[Self], other_labels: list[ParsedLabel]
-    ) -> Self | None:
+        self, raw_rule_labels: list[RawRuleLabel], other_labels: list[ParsedLabel]
+    ) -> ResolvedRuleLabel[Any] | None:
         return self
 
     def to_data(self) -> tuple[int, str]:
@@ -397,8 +397,8 @@ class MethodsLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, AutheliaMethod]]):
         return label_key, label_value
 
     def resolve(
-        self, raw_rule_labels: list[Self], other_labels: list[ParsedLabel]
-    ) -> Self | None:
+        self, raw_rule_labels: list[RawRuleLabel], other_labels: list[ParsedLabel]
+    ) -> ResolvedRuleLabel[Any] | None:
         return self
 
     def to_data(self) -> tuple[int, AutheliaMethod]:
@@ -445,8 +445,8 @@ class PolicyLabel(RawRuleLabel, ResolvedRuleLabel[config.AutheliaPolicy]):
         return label_key, label_value
 
     def resolve(
-        self, raw_rule_labels: list[Self], other_labels: list[ParsedLabel]
-    ) -> Self | None:
+        self, raw_rule_labels: list[RawRuleLabel], other_labels: list[ParsedLabel]
+    ) -> ResolvedRuleLabel[Any] | None:
         return self
 
     def to_data(self) -> config.AutheliaPolicy:
@@ -514,7 +514,7 @@ class QueryKeyLabel(RawRuleLabel):
         return label_key, label_value
 
     def resolve(
-        self, raw_rule_labels: list[Self], other_labels: list[ParsedLabel]
+        self, raw_rule_labels: list[RawRuleLabel], other_labels: list[ParsedLabel]
     ) -> QueryLabel | None:
         # Converts QueryKeyLabel, QueryOperatorLabel, and QueryValueLabel to a QueryLabel
 
@@ -670,8 +670,8 @@ class QueryOperatorLabel(RawRuleLabel):
         return label_key, label_value
 
     def resolve(
-        self, raw_rule_labels: list[Self], other_labels: list[ParsedLabel]
-    ) -> QueryLabel | None:
+        self, raw_rule_labels: list[RawRuleLabel], other_labels: list[ParsedLabel]
+    ) -> ResolvedRuleLabel[Any] | None:
         # todo: explain
         return None
 
@@ -719,8 +719,8 @@ class QueryValueLabel(RawRuleLabel):
         return label_key, label_value
 
     def resolve(
-        self, raw_rule_labels: list[Self], other_labels: list[ParsedLabel]
-    ) -> QueryLabel | None:
+        self, raw_rule_labels: list[RawRuleLabel], other_labels: list[ParsedLabel]
+    ) -> ResolvedRuleLabel[Any] | None:
         # todo: explain
         return None
 
@@ -759,8 +759,8 @@ class RankLabel(RawRuleLabel, ResolvedRuleLabel[int]):
         return label_key, label_value
 
     def resolve(
-        self, raw_rule_labels: list[Self], other_labels: list[ParsedLabel]
-    ) -> Self | None:
+        self, raw_rule_labels: list[RawRuleLabel], other_labels: list[ParsedLabel]
+    ) -> ResolvedRuleLabel[Any] | None:
         return self
 
     def to_data(self) -> int:
@@ -804,8 +804,8 @@ class ResourcesLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, str]]):
         return label_key, label_value
 
     def resolve(
-        self, raw_rule_labels: list[Self], other_labels: list[ParsedLabel]
-    ) -> Self | None:
+        self, raw_rule_labels: list[RawRuleLabel], other_labels: list[ParsedLabel]
+    ) -> ResolvedRuleLabel[Any] | None:
         return self
 
     def to_data(self) -> tuple[int, str]:
@@ -858,8 +858,8 @@ class SubjectLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, int, str]]):
         return label_key, label_value
 
     def resolve(
-        self, raw_rule_labels: list[Self], other_labels: list[ParsedLabel]
-    ) -> Self | None:
+        self, raw_rule_labels: list[RawRuleLabel], other_labels: list[ParsedLabel]
+    ) -> ResolvedRuleLabel[Any] | None:
         return self
 
     def to_data(self) -> tuple[int, int, str]:
@@ -869,7 +869,7 @@ class SubjectLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, int, str]]):
 def resolve(
     raw_rule_labels: list[RawRuleLabel],
     other_labels: list[ParsedLabel],
-) -> list[ResolvedRuleLabel]:
+) -> list[ResolvedRuleLabel[Any]]:
     return [
         resolved_label
         for label in raw_rule_labels

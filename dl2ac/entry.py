@@ -3,7 +3,7 @@ import enum
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import docker
 import typer
@@ -68,7 +68,7 @@ def run_loop(
     if max_iterations is not None and max_iterations < 0:
         max_iterations = None
 
-    last_written_data: dict | None = None
+    last_written_data: dict[str, Any] | None = None
     is_first_loop = True
     current_iteration = 0
     while max_iterations is None or current_iteration < max_iterations:
@@ -193,7 +193,7 @@ def to_authelia_data(
     parsed_containers: list[containers.ParsedContainer],
     default_authelia_policy: config.AutheliaPolicy,
     default_rule_policy: config.AutheliaPolicy,
-) -> dict:
+) -> dict[str, Any]:
     raw_rule_labels: list[labels.RawRuleLabel] = containers.load_rules(
         parsed_containers
     )
@@ -204,7 +204,7 @@ def to_authelia_data(
     )
     logger.debug(f'{other_labels=}')
 
-    resolved_rule_labels: list[labels.ResolvedRuleLabel] = labels.resolve(
+    resolved_rule_labels: list[labels.ResolvedRuleLabel[Any]] = labels.resolve(
         raw_rule_labels, other_labels
     )
     logger.debug(f'{resolved_rule_labels=}')

@@ -26,8 +26,8 @@ def test_only_one_parsable_label_matches(expected_label: labels.ParsedLabel) -> 
 def test_domain_from_traefik_label(
     expected_label: labels.DomainFromTraefikLabel, traefik_router_name: str
 ) -> None:
-    raw_rule_labels = []
-    other_labels = []
+    raw_rule_labels: list[labels.RawRuleLabel] = []
+    other_labels: list[labels.ParsedLabel] = []
 
     traefik_router_label = labels.TraefikRouterLabel.try_parse(
         label_key=config.TRAEFIK_ROUTER_KEY_FORMAT.format(
@@ -61,8 +61,8 @@ def test_domain_from_traefik_label(
 @given(shared.query_label_strategy)
 def test_query_label(expected_label: labels.QueryLabel) -> None:
     logger.debug(f'{expected_label=}')
-    raw_rule_labels = []
-    other_labels = []
+    raw_rule_labels: list[labels.RawRuleLabel] = []
+    other_labels: list[labels.ParsedLabel] = []
 
     query_key_label = labels.QueryKeyLabel.try_parse(
         label_key=config.QUERY_KEY_KEY_FORMAT.format(

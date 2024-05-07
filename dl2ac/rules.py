@@ -3,7 +3,7 @@ import dataclasses
 import enum
 import shutil
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, Self, TypeVar, cast
 
 from loguru import logger
 from ruamel.yaml import YAML
@@ -12,9 +12,12 @@ from ruamel.yaml.compat import StringIO
 from dl2ac import config, labels
 
 
-def _get_duplicates(values: list[Any]) -> list:
+DuplicateType = TypeVar('DuplicateType')
+
+
+def _get_duplicates(values: list[DuplicateType]) -> list[DuplicateType]:
     counter = collections.Counter(values)
-    duplicates = []
+    duplicates: list[DuplicateType] = []
     for value, count in counter.most_common():
         if count <= 1:
             break
@@ -40,7 +43,7 @@ class RawRule:
     resources: list[tuple[int, str]] = dataclasses.field(default_factory=list)
     subject: list[tuple[int, int, str]] = dataclasses.field(default_factory=list)
 
-    def add(self, label: labels.ResolvedRuleLabel):
+    def add(self, label: labels.ResolvedRuleLabel[Any]) -> None:
         data = label.to_data()
         match type(label):
             case labels.DomainLabel:
@@ -100,47 +103,36 @@ class ParsedRule:
         # We want to show the user everything that is wrong with the rules
         # so that the user does not have to re-run the program over and over.
         validations = [
-            validation_function(values, rule_name, field_name)
-            for validation_function, values, field_name in [
-                (cls._validate_no_duplicate_first_index, raw_rule.domain, 'domain'),
-                (
-                    cls._validate_no_duplicate_first_index,
-                    raw_rule.domain_from_traefik,
-                    'domain.from_traefik',
-                ),
-                (
-                    cls._validate_no_duplicate_first_index,
-                    raw_rule.domain_regex,
-                    'domain_regex',
-                ),
-                (cls._validate_at_most_one, raw_rule.policy, 'policy'),
-                (cls._validate_no_duplicate_first_index, raw_rule.methods, 'methods'),
-                (
-                    cls._validate_no_duplicate_first_second_indices,
-                    raw_rule.query,
-                    'query',
-                ),
-                (cls._validate_exactly_one, raw_rule.rank, 'rank'),
-                (
-                    cls._validate_no_duplicate_first_index,
-                    raw_rule.resources,
-                    'resources',
-                ),
-                (
-                    cls._validate_no_duplicate_first_second_indices,
-                    raw_rule.subject,
-                    'subject',
-                ),
-            ]
-        ] + [
+            cls._validate_no_duplicate_first_index(
+                raw_rule.domain, rule_name, 'domain'
+            ),
+            cls._validate_no_duplicate_first_index(
+                raw_rule.domain_from_traefik, rule_name, 'domain.from_traefik'
+            ),
+            cls._validate_no_duplicate_first_index(
+                raw_rule.domain_regex, rule_name, 'domain_regex'
+            ),
+            cls._validate_at_most_one(raw_rule.policy, rule_name, 'policy'),
+            cls._validate_no_duplicate_first_index(
+                raw_rule.methods, rule_name, 'methods'
+            ),
+            cls._validate_no_duplicate_first_second_indices(
+                raw_rule.query, rule_name, 'query'
+            ),
+            cls._validate_exactly_one(raw_rule.rank, rule_name, 'rank'),
+            cls._validate_no_duplicate_first_index(
+                raw_rule.resources, rule_name, 'resources'
+            ),
+            cls._validate_no_duplicate_first_second_indices(
+                raw_rule.subject, rule_name, 'subject'
+            ),
             cls._validate_at_least_one_domain(
                 rule_name,
                 raw_rule.domain,
                 raw_rule.domain_from_traefik,
                 raw_rule.domain_regex,
-            )
+            ),
         ]
-
         if not all(validations):
             logger.warning(
                 f'Rule `{rule_name}` is invalid because it has one or more invalid fields.'
@@ -270,7 +262,7 @@ class ParsedRule:
     def _validate_no_duplicate_first_index(
         values: list[tuple[int, Any]], rule_name: str, field_name: str
     ) -> bool:
-        indices = [index for index, *args in values]
+        indices = [index for index, *_ in values]
         duplicates = _get_duplicates(indices)
 
         if len(duplicates) > 0:
@@ -288,7 +280,7 @@ class ParsedRule:
         values: list[tuple[int, int, Any]], rule_name: str, field_name: str
     ) -> bool:
         indices = [
-            (outer_index, inner_index) for outer_index, inner_index, *args in values
+            (outer_index, inner_index) for outer_index, inner_index, *_ in values
         ]
         duplicates = _get_duplicates(indices)
 
@@ -307,7 +299,7 @@ class ParsedRule:
         values: list[tuple[int, int, Any]], rule_name: str, field_name: str
     ) -> bool:
         indices = [
-            (outer_index, inner_index) for outer_index, inner_index, *args in values
+            (outer_index, inner_index) for outer_index, inner_index, *_ in values
         ]
         duplicates = _get_duplicates(indices)
 
@@ -358,7 +350,7 @@ class AccessControl:
 
 
 def parse_rules(
-    label_list: list[labels.ResolvedRuleLabel],
+    label_list: list[labels.ResolvedRuleLabel[Any]],
     default_rule_policy: config.AutheliaPolicy,
 ) -> list[ParsedRule]:
     raw_rules: dict[str, RawRule] = collections.defaultdict(RawRule)
@@ -418,7 +410,7 @@ def to_access_control(
 
 
 def write_config(
-    access_control_data: dict, config_file: Path, backup_config_file: Path
+    access_control_data: dict[str, Any], config_file: Path, backup_config_file: Path
 ) -> None:
     if not config_file.exists():
         logger.error(f'Config file at `{str(config_file)}` does not exist')
@@ -433,9 +425,15 @@ def write_config(
 
     yaml = StringYaml()
     logger.debug(f'Reading config at `{str(config_file)}`')
+
+    # Defining authelia_config here already
+    # because pyright doesn't seem to understand that in case of error
+    # exit() will terminate the whole application
+    # and thus yaml.dump will never be called with an invalid authelia_config.
+    authelia_config: dict[str, Any] = {}
     with open(config_file, 'r') as file:
         try:
-            authelia_config = yaml.load(file)
+            authelia_config = cast(dict[str, Any], yaml.load(file))
         except Exception as exception:
             logger.error(
                 f'Exception occurred while reading config file `{str(config_file)}`: {exception}'
@@ -451,7 +449,9 @@ def write_config(
         yaml.dump(authelia_config, file)
 
 
-def write_access_control_data(access_control_data: dict, rules_file: Path) -> None:
+def write_access_control_data(
+    access_control_data: dict[str, Any], rules_file: Path
+) -> None:
     yaml = StringYaml()
     logger.debug(f'Writing rules to `{str(rules_file)}`')
     with open(rules_file, 'w') as file:
@@ -469,7 +469,7 @@ def enum_as_value_factory(data: list[tuple[str, Any]]) -> dict[str, Any]:
             # But without it, the result is incorrect.
             # rules.methods would be list[enum.Enum],
             # but we want it to be list[str]
-            return [convert_value(item) for item in obj]
+            return [convert_value(item) for item in cast(list[Any], obj)]
 
         return obj
 
@@ -495,13 +495,17 @@ class StringYaml(YAML):
         # See https://stackoverflow.com/a/39263202
         self.preserve_quotes = True
 
-    def dump(self, data, stream=None, **kw):
+    def dump(
+        self, data: Path | Any, stream: Any = None, **kwargs: dict[str, Any]
+    ) -> Any:
         # See https://yaml.readthedocs.io/en/latest/example/#output-of-dump-as-a-string
         inefficient = False
         if stream is None:
             inefficient = True
             stream = StringIO()
 
-        YAML.dump(self, data, stream, **kw)
+        YAML.dump(self, data, stream, **kwargs)
         if inefficient:
             return stream.getvalue()
+
+        return None

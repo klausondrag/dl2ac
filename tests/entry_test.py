@@ -101,18 +101,11 @@ def containers_and_access_control(
     parsed_label_strings: list[tuple[str, str]] = []
     raw_rule_labels: list[dl2ac_labels.RawRuleLabel] = []
     raw_rule_label_strings: list[tuple[str, str]] = []
-    for index, (
-        rank,
-        sorted_rule,
-        n_simple_domain_labels,
-        traefik_router_names,
-    ) in enumerate(
-        zip(
-            ranks,
-            access_control.rules,
-            n_simple_domain_labels_per_rule,
-            traefik_router_names_per_rule,
-        )
+    for rank, sorted_rule, n_simple_domain_labels, traefik_router_names in zip(
+        ranks,
+        access_control.rules,
+        n_simple_domain_labels_per_rule,
+        traefik_router_names_per_rule,
     ):
         add_domain_label(
             draw,

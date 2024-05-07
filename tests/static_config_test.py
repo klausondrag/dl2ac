@@ -16,7 +16,9 @@ def test_rank_rule(expected_rule_name: str) -> None:
     _test_rule(config.RANK_KEY_REGEX, config.RANK_KEY_FORMAT, expected_rule_name)
 
 
-def _test_rule(regex: re.Pattern, format_string: str, expected_rule_name: str) -> None:
+def _test_rule(
+    regex: re.Pattern[str], format_string: str, expected_rule_name: str
+) -> None:
     formatted_string = format_string.format(rule_name=expected_rule_name)
     if match := regex.match(formatted_string):
         actual_rule_name = match.group(1)

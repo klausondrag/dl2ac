@@ -96,7 +96,7 @@ class RuleStringParser(Parser[bool]):
 
 @dataclasses.dataclass
 class RegexParser(Parser[str]):
-    regex: re.Pattern
+    regex: re.Pattern[str]
     group_name: str
 
     def from_str(self, value: str) -> str | None:
@@ -110,7 +110,7 @@ class RegexParser(Parser[str]):
 
 @dataclasses.dataclass
 class RuleRegexParser(Parser[str]):
-    regex: re.Pattern
+    regex: re.Pattern[str]
 
     def from_str(self, value: str) -> str | None:
         # 'dl2ac.rules.one.policy': 'one_factor'
@@ -123,7 +123,7 @@ class RuleRegexParser(Parser[str]):
 
 @dataclasses.dataclass
 class RuleWithOneIndexRegexParser(Parser[tuple[str, int]]):
-    regex: re.Pattern
+    regex: re.Pattern[str]
     index_parser: ClassVar[Parser[int]] = IntParser('index')
 
     def from_str(self, value: str) -> tuple[str, int] | None:
@@ -141,7 +141,7 @@ class RuleWithOneIndexRegexParser(Parser[tuple[str, int]]):
 
 @dataclasses.dataclass
 class RuleWithTwoIndicesRegexParser(Parser[tuple[str, int, int]]):
-    regex: re.Pattern
+    regex: re.Pattern[str]
     index_parser: ClassVar[Parser[int]] = IntParser('index')
 
     def from_str(self, value: str) -> tuple[str, int, int] | None:
