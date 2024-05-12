@@ -43,6 +43,9 @@ services:
       dl2ac.rules.one.domain_regex.2: '^group-(?P<Group>\w+)\.example\.com$'
       dl2ac.rules.one.methods.1: GET
       dl2ac.rules.one.methods.2: POST
+      dl2ac.rules.one.networks.1: 172.16.0.0/12
+      dl2ac.rules.one.networks.2: 192.168.0.0/18
+      dl2ac.rules.one.networks.3: internal1
       dl2ac.rules.one.policy: one_factor
       dl2ac.rules.one.query.1.1.key: token
       dl2ac.rules.one.query.1.1.operator: not pattern
@@ -77,6 +80,9 @@ services:
       - "dl2ac.rules.two.methods.1=GET"
       - "dl2ac.rules.two.methods.2=POST"
       - "dl2ac.rules.two.methods.2=POST"
+      - "dl2ac.rules.two.networks.1=172.16.0.0/12"
+      - "dl2ac.rules.two.networks.2=192.168.0.0/18"
+      - "dl2ac.rules.two.networks.3=internal2"
       - "dl2ac.rules.two.policy=one_factor"
       - "dl2ac.rules.two.query.1.1.key=token"
       - "dl2ac.rules.two.query.1.1.operator=not pattern"

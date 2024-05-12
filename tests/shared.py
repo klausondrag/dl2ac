@@ -18,6 +18,7 @@ is_authelia_strategy = st.booleans()
 domain_strategy = st.text(alphabet=st.characters(exclude_characters=['\n']), min_size=1)
 domain_regex_strategy = domain_strategy
 methods_strategy = st.sampled_from(labels.AutheliaMethod)
+networks_strategy = domain_strategy
 policy_strategy = st.sampled_from(config.AutheliaPolicy)
 rank_strategy = st.integers()
 resources_strategy = domain_strategy
@@ -105,6 +106,13 @@ methods_label_strategy = st.builds(
     method=methods_strategy,
 )
 
+networks_label_strategy = st.builds(
+    labels.NetworksLabel,
+    rule_name=rule_name_strategy,
+    index=index_strategy,
+    network=networks_strategy,
+)
+
 policy_label_strategy = st.builds(
     labels.PolicyLabel,
     rule_name=rule_name_strategy,
@@ -171,6 +179,7 @@ parsable_label_strategy = st.one_of(
     domain_add_traefik_label_strategy,
     domain_regex_label_strategy,
     methods_label_strategy,
+    networks_label_strategy,
     policy_label_strategy,
     rank_label_strategy,
     resources_label_strategy,

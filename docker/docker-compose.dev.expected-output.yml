@@ -10,6 +10,10 @@ rules:
   methods:
   - GET
   - POST
+  networks:
+  - 172.16.0.0/12
+  - 192.168.0.0/18
+  - internal1
   policy: one_factor
   resources:
   - ^/api([/?].*)?$
@@ -36,6 +40,10 @@ rules:
   methods:
   - GET
   - POST
+  networks:
+  - 172.16.0.0/12
+  - 192.168.0.0/18
+  - internal2
   policy: one_factor
   resources:
   - ^/api([/?].*)?$

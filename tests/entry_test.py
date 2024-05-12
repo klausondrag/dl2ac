@@ -26,6 +26,7 @@ sorted_rule_strategy = st.one_of(
         domain=st.lists(shared.domain_strategy, min_size=1),
         domain_regex=st.lists(shared.domain_regex_strategy),
         methods=st.lists(shared.methods_strategy),
+        networks=st.lists(shared.networks_strategy),
         policy=shared.policy_strategy,
         query=st.lists(
             st.one_of(
@@ -46,6 +47,7 @@ sorted_rule_strategy = st.one_of(
         domain=st.lists(shared.domain_strategy),
         domain_regex=st.lists(shared.domain_regex_strategy, min_size=1),
         methods=st.lists(shared.methods_strategy),
+        networks=st.lists(shared.networks_strategy),
         policy=shared.policy_strategy,
         query=st.lists(
             st.one_of(
@@ -121,6 +123,7 @@ def containers_and_access_control(
             draw, raw_rule_labels, raw_rule_label_strings, sorted_rule
         )
         add_methods_label(draw, raw_rule_labels, raw_rule_label_strings, sorted_rule)
+        add_networks_label(draw, raw_rule_labels, raw_rule_label_strings, sorted_rule)
         add_policy_label(
             draw,
             raw_rule_labels,
@@ -375,6 +378,28 @@ def add_methods_label(
         )
         method_label_string_value = method.value
         label_strings.append((method_label_string_key, method_label_string_value))
+
+
+def add_networks_label(
+    draw: st.DrawFn,
+    raw_rule_labels: list[dl2ac_labels.RawRuleLabel],
+    label_strings: list[tuple[str, str]],
+    sorted_rule: rules.SortedRule,
+) -> None:
+    n_networks = len(sorted_rule.networks)
+    networks_indices = create_order_indices(draw, shared.index_strategy, n_networks)
+    for index, network in zip(networks_indices, sorted_rule.networks):
+        network_label = dl2ac_labels.NetworksLabel(
+            rule_name=sorted_rule.name, index=index, network=network
+        )
+        raw_rule_labels.append(network_label)
+
+        network_label_string_key = config.NETWORKS_KEY_FORMAT.format(
+            rule_name=sorted_rule.name,
+            index=index,
+        )
+        network_label_string_value = network
+        label_strings.append((network_label_string_key, network_label_string_value))
 
 
 def add_policy_label(

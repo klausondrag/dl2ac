@@ -38,6 +38,10 @@ DOMAIN_REGEX_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.domain_regex.{{index}}'
 METHODS_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.methods\.(?P<index>.+)')
 METHODS_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.methods.{{index}}'
 
+# 'dl2ac.rules.one.networks.1': '10.0.0.0/8'
+NETWORKS_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.networks\.(?P<index>.+)')
+NETWORKS_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.networks.{{index}}'
+
 # 'dl2ac.rules.one.policy': 'one_factor'
 POLICY_KEY_REGEX = re.compile(rf'{LABEL_RULES_START_REGEX}\.policy')
 POLICY_KEY_FORMAT = f'{LABEL_RULES_START_FORMAT}.policy'

@@ -406,6 +406,51 @@ class MethodsLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, AutheliaMethod]]):
 
 
 @dataclasses.dataclass
+class NetworksLabel(RawRuleLabel, ResolvedRuleLabel[tuple[int, str]]):
+    # See https://www.authelia.com/configuration/security/access-control/#networks
+    index: int
+    network: str
+
+    label_key_parser: ClassVar[parsers.Parser[tuple[str, int]]] = (
+        parsers.RuleWithOneIndexRegexParser(regex=config.NETWORKS_KEY_REGEX)
+    )
+    label_value_parser: ClassVar[parsers.Parser[str]] = parsers.StringParser()
+
+    @classmethod
+    def try_parse(cls, label_key: str, label_value: str) -> Self | None:
+        # 'dl2ac.rules.one.networks.1': '10.0.0.0/8'
+        label_key_data: tuple[str, int] | None = cls.label_key_parser.from_str(
+            label_key
+        )
+        if label_key_data is None:
+            return None
+
+        label_value_data: str | None = cls.label_value_parser.from_str(label_value)
+        if label_value_data is None:
+            return None
+
+        rule_name, index = label_key_data
+        network = label_value_data
+        return cls(rule_name=rule_name, index=index, network=network)
+
+    def to_parsable_strings(self) -> tuple[str, str]:
+        label_key = config.NETWORKS_KEY_FORMAT.format(
+            rule_name=self.rule_name,
+            index=self.index,
+        )
+        label_value = self.network
+        return label_key, label_value
+
+    def resolve(
+        self, raw_rule_labels: list[RawRuleLabel], other_labels: list[ParsedLabel]
+    ) -> ResolvedRuleLabel[Any] | None:
+        return self
+
+    def to_data(self) -> tuple[int, str]:
+        return self.index, self.network
+
+
+@dataclasses.dataclass
 class PolicyLabel(RawRuleLabel, ResolvedRuleLabel[config.AutheliaPolicy]):
     # See https://www.authelia.com/configuration/security/access-control/#policy
     policy: config.AutheliaPolicy

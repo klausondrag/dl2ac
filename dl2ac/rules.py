@@ -35,6 +35,7 @@ class RawRule:
     methods: list[tuple[int, labels.AutheliaMethod]] = dataclasses.field(
         default_factory=list
     )
+    networks: list[tuple[int, str]] = dataclasses.field(default_factory=list)
     policy: list[config.AutheliaPolicy] = dataclasses.field(default_factory=list)
     query: list[tuple[int, int, labels.QueryObject]] = dataclasses.field(
         default_factory=list
@@ -54,6 +55,8 @@ class RawRule:
                 self.domain_regex.append(data)
             case labels.MethodsLabel:
                 self.methods.append(data)
+            case labels.NetworksLabel:
+                self.networks.append(data)
             case labels.PolicyLabel:
                 self.policy.append(data)
             case labels.QueryLabel:
@@ -77,6 +80,7 @@ class ParsedRule:
     domain: list[str]
     domain_regex: list[str]
     methods: list[labels.AutheliaMethod]
+    networks: list[str]
     rank: int
     policy: config.AutheliaPolicy
     query: list[labels.QueryObject | list[labels.QueryObject]]
@@ -115,6 +119,9 @@ class ParsedRule:
             cls._validate_at_most_one(raw_rule.policy, rule_name, 'policy'),
             cls._validate_no_duplicate_first_index(
                 raw_rule.methods, rule_name, 'methods'
+            ),
+            cls._validate_no_duplicate_first_index(
+                raw_rule.networks, rule_name, 'networks'
             ),
             cls._validate_no_duplicate_first_second_indices(
                 raw_rule.query, rule_name, 'query'
@@ -161,6 +168,9 @@ class ParsedRule:
 
         # Sort methods by index (first value of tuple)
         methods = [method for _, method in sorted(raw_rule.methods)]
+
+        # Sort methods by index (first value of tuple)
+        networks = [network for _, network in sorted(raw_rule.networks)]
 
         # We have ensured that the lists have exactly at most one unique value,
         # so we can safely access it with [0] if it exists.
@@ -223,6 +233,7 @@ class ParsedRule:
             domain=domain,
             domain_regex=domain_regex,
             methods=methods,
+            networks=networks,
             policy=policy,
             query=simplified_query_list,
             rank=rank,
@@ -337,6 +348,7 @@ class SortedRule:
     domain: list[str]
     domain_regex: list[str]
     methods: list[labels.AutheliaMethod]
+    networks: list[str]
     policy: config.AutheliaPolicy
     query: list[labels.QueryObject | list[labels.QueryObject]]
     resources: list[str]
@@ -388,6 +400,7 @@ def sort_rules(parsed_rules: list[ParsedRule]) -> list[SortedRule]:
             domain=parsed_rule.domain,
             domain_regex=parsed_rule.domain_regex,
             methods=parsed_rule.methods,
+            networks=parsed_rule.networks,
             policy=parsed_rule.policy,
             query=parsed_rule.query,
             resources=parsed_rule.resources,
