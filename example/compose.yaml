@@ -1,0 +1,114 @@
+services:
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--api.insecure=true"
+      - "--api=true"
+      - "--entrypoints.insecure.address=:80"
+      - "--providers.docker.endpoint=tcp://docker-proxy:2375"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=public"
+      - "--providers.docker=true"
+      - '--entrypoints.insecure.http.redirections.entrypoint.scheme=https'
+      - '--entrypoints.insecure.http.redirections.entrypoint.to=web-secure'
+      - '--entrypoints.insecure=true'
+      - '--entrypoints.web-secure.address=:443'
+      - '--entrypoints.web-secure=true'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-dashboard-router.entrypoints=web-secure"
+      - "traefik.http.routers.traefik-dashboard-router.rule=Host(`dashboard.home.localhost`)"
+      - "traefik.http.routers.traefik-dashboard-router.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard-router.tls=true"
+    networks:
+      - public
+      - proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+    # volumes:
+      # - /var/run/docker.sock:/var/run/docker.sock
+
+  authelia:
+    image: authelia/authelia
+    environment:
+      - LOG_LEVEL=debug
+    labels:
+      - "dl2ac.is-authelia=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.authelia.entrypoints=web-secure"
+      - "traefik.http.routers.authelia.rule=Host(`login.home.localhost`)"
+      - "traefik.http.routers.authelia.service=authelia"
+      - "traefik.http.routers.authelia.tls=true"
+      - "traefik.http.services.authelia.loadbalancer.server.port=9091"
+      - 'traefik.http.middlewares.authelia.forwardauth.address=http://authelia:9091/api/authz/forward-auth'
+      - 'traefik.http.middlewares.authelia.forwardauth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Name,Remote-Email'
+      - 'traefik.http.middlewares.authelia.forwardauth.trustForwardHeader=true'
+    networks:
+      - public
+      - authelia
+    restart: unless-stopped
+    volumes:
+      - ./authelia:/config
+
+  redis:
+    image: redis:alpine
+    networks:
+      - authelia
+    restart: unless-stopped
+    volumes:
+      - ./redis:/data
+
+  dl2ac:
+    image: klausondrag/dl2ac:latest
+    environment:
+      - DOCKER_HOST=tcp://docker-proxy:2375
+    labels:
+      - "dl2ac.default_global_policy=deny"
+      - "dl2ac.default_rule_policy=deny"
+      - "dl2ac.rules.one.policy=one_factor"
+      - "dl2ac.rules.one.rank=20"
+    networks:
+      - proxy
+    restart: unless-stopped
+    volumes:
+      # If you don't want to use the docker socket proxy,
+      # Comment the DOCKER_HOST variable above, and uncomment the following line instead.
+      # - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./authelia:/config
+      - ./rules:/rules
+
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy
+    environment:
+      - CONTAINERS=1  # Necessary to see the containers and their labels
+      - POST=1  # Necessary to restart authelia
+      - LOG_LEVEL=warning
+    networks:
+      - proxy
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  hello:
+    image: containous/whoami
+    labels:
+      - "dl2ac.rules.one.domain_traefik.1=hello"
+      # Or, manually:
+      # - "dl2ac.rules.one.domain.1=hello.home.localhost"
+      - "traefik.enable=true"
+      - "traefik.http.routers.hello.entrypoints=web-secure"
+      - "traefik.http.routers.hello.middlewares=authelia@docker"
+      - "traefik.http.routers.hello.rule=Host(`hello.home.localhost`)"
+      - "traefik.http.routers.hello.service=hello"
+      - "traefik.http.routers.hello.tls=true"
+      - "traefik.http.services.hello.loadbalancer.server.port=80"
+    networks:
+      - public
+    restart: unless-stopped
+
+networks:
+  authelia:
+  proxy:
+  public:

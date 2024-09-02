@@ -1,0 +1,6 @@
+services:
+  dl2ac:
+    build:
+      context: ..
+      dockerfile: "./docker/Dockerfile"
+    image: klausondrag/dl2ac:latest

@@ -1,0 +1,71 @@
+---
+###############################################################
+#                   Authelia configuration                    #
+###############################################################
+
+server:
+  address: 'tcp://:9091'
+
+log:
+  level: 'info'
+
+totp:
+  issuer: 'authelia.com'
+
+identity_validation:
+  reset_password:
+    jwt_secret: 'a_very_important_secret'
+
+# duo_api:
+#  hostname: api-123456789.home.localhost
+#  integration_key: ABCDEF
+#  # This secret can also be set using the env variables AUTHELIA_DUO_API_SECRET_KEY_FILE
+#  secret_key: 1234567890abcdefghifjkl
+
+authentication_backend:
+  file:
+    path: '/config/users_database.yml'
+
+access_control:
+  default_policy: 'deny'
+  rules:
+    # Rules applied to everyone
+    - domain: 'public.home.localhost'
+      policy: 'bypass'
+    - domain: 'traefik.home.localhost'
+      policy: 'one_factor'
+    - domain: 'secure.home.localhost'
+      policy: 'two_factor'
+
+session:
+  # This secret can also be set using the env variables AUTHELIA_SESSION_SECRET_FILE
+  secret: 'insecure_session_secret'
+
+  cookies:
+    - name: 'authelia_session'
+      domain: 'home.localhost'  # Should match whatever your root protected domain is
+      authelia_url: 'https://login.home.localhost'
+      expiration: '1 hour'
+      inactivity: '5 minutes'
+
+  redis:
+    host: 'redis'
+    port: 6379
+    # This secret can also be set using the env variables AUTHELIA_SESSION_REDIS_PASSWORD_FILE
+    # password: authelia
+
+regulation:
+  max_retries: 3
+  find_time: '2 minutes'
+  ban_time: '5 minutes'
+
+storage:
+  encryption_key: 'you_must_generate_a_random_string_of_more_than_twenty_chars_and_configure_this'
+  local:
+    path: '/config/db.sqlite3'
+
+notifier:
+  disable_startup_check: false
+  filesystem:
+    filename: '/config/notification.txt'
+...

@@ -355,10 +355,23 @@ class SortedRule:
     subject: list[str | list[str]]
 
 
+# Has no name
+@dataclasses.dataclass
+class OutputRule:
+    domain: list[str]
+    domain_regex: list[str]
+    methods: list[labels.AutheliaMethod]
+    networks: list[str]
+    policy: config.AutheliaPolicy
+    query: list[labels.QueryObject | list[labels.QueryObject]]
+    resources: list[str]
+    subject: list[str | list[str]]
+
+
 @dataclasses.dataclass
 class AccessControl:
     default_policy: config.AutheliaPolicy
-    rules: list[SortedRule]
+    rules: list[OutputRule]
 
 
 def parse_rules(
@@ -411,12 +424,12 @@ def sort_rules(parsed_rules: list[ParsedRule]) -> list[SortedRule]:
 
 
 def to_access_control(
-    sorted_rules: list[SortedRule],
+    output_rules: list[OutputRule],
     default_authelia_policy: config.AutheliaPolicy,
 ) -> AccessControl:
     access_control = AccessControl(
         default_policy=default_authelia_policy,
-        rules=sorted_rules,
+        rules=output_rules,
     )
 
     return access_control

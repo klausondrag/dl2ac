@@ -1,4 +1,46 @@
 
+[!WARNING] This project is under active development and not ready for usage in production.
+
+# Introduction
+This project brings configuration via docker labels à la
+traefik to [authelia](https://www.authelia.com/).
+dl2ac runs in a docker container and monitors docker labels.
+When detecting a change, it will update the authelia config and restart the authelia docker container.
+It will convert docker labels like this:
+```yaml
+  labels:
+    dl2ac.rules.one.domain.1: '*.example.com'
+    dl2ac.rules.one.policy: one_factor
+    dl2ac.rules.one.rank: 10
+```
+
+into this:
+```yaml
+default_policy: deny
+rules:
+- domain:
+  - '*.example.com'
+  policy: one_factor
+```
+
+# Running
+Here's an example [docker compose file](./example/compose.yaml).
+You also need a configuration and users_database, which can also be found in the [example](./example) folder.
+```bash
+git clone git@github.com:klausondrag/dl2ac.git --depth 1
+cd dl2ac/example
+sudo docker compose up
+```
+Navigate to [https://hello.home.localhost/](https://hello.home.localhost/) in your browser.
+Accept the self-signed certificates.
+You should be prompted to authenticate.
+Use `authelia` as username and password to login.
+Now the hello service is behind an auth server, configured by docker labels!
+
+Navigate to [https://login.home.localhost/](https://login.home.localhost/) and sign out.
+Navigate to [https://hello.home.localhost/](https://hello.home.localhost/) again and see that you're required to login again.
+
+
 # Development
 ## Setup
 1. This project uses [just](https://github.com/casey/just) to run commands.

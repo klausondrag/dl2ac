@@ -217,7 +217,22 @@ def to_authelia_data(
     sorted_rules: list[rules.SortedRule] = rules.sort_rules(parsed_rules)
     logger.debug(f'{sorted_rules=}')
 
-    access_control = rules.to_access_control(sorted_rules, default_authelia_policy)
+    output_rules: list[rules.OutputRule] = [
+        rules.OutputRule(
+            domain=sorted_rule.domain,
+            domain_regex=sorted_rule.domain_regex,
+            methods=sorted_rule.methods,
+            networks=sorted_rule.networks,
+            policy=sorted_rule.policy,
+            query=sorted_rule.query,
+            resources=sorted_rule.resources,
+            subject=sorted_rule.subject,
+        )
+        for sorted_rule in sorted_rules
+    ]
+    logger.debug(f'{output_rules=}')
+
+    access_control = rules.to_access_control(output_rules, default_authelia_policy)
     logger.debug(f'{access_control=}')
 
     access_control_dict = dataclasses.asdict(

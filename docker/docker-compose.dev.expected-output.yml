@@ -1,7 +1,6 @@
 default_policy: deny
 rules:
-- name: one
-  domain:
+- domain:
   - '*.example.com'
   - whoami1.example.com
   domain_regex:
@@ -30,8 +29,7 @@ rules:
   - - group:admin
     - group:app-name
   - group:super-admin
-- name: two
-  domain:
+- domain:
   - '*.example.com'
   - whoami2.example.com
   domain_regex:

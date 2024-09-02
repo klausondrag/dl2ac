@@ -75,3 +75,6 @@ run-dl2ac-dev-docker-loop: && dev-stop
 
 extract-default-config:
 	./extract_default_config.sh
+
+publish:
+    cd docker && docker compose -f compose.build.yml build --push
